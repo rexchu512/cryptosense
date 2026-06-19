@@ -47,8 +47,10 @@
 
 ## 3. 系統架構
 
+> **專案位置**：`claude專案/cryptosense/`（與 `ielts-tracker/`、`ppt-master/` 等子專案並排）
+
 ```
-Next.js (App Router, TypeScript) — 單一 repo，部署 Vercel
+cryptosense/ — Next.js (App Router, TypeScript)，部署 Vercel
 ├── app/
 │   ├── page.tsx              # 市場總覽 Dashboard
 │   ├── coin/[id]/page.tsx    # 個幣分析頁
