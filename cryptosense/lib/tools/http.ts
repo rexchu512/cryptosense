@@ -4,7 +4,7 @@ import type { ToolResult } from "./types";
 export function ok<T>(data: T, source: string): ToolResult<T> {
   return { data, source, timestamp: new Date().toISOString() };
 }
-export function fail(source: string, error: string): ToolResult<null> {
+export function fail<T = null>(source: string, error: string): ToolResult<T> {
   return { data: null, source, timestamp: new Date().toISOString(), error };
 }
 
