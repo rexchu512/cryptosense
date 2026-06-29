@@ -26,6 +26,7 @@ describe("cryptoTools", () => {
   it("getCryptoNews.execute returns ToolResult", async () => {
     const r = await (cryptoTools.getCryptoNews as any).execute({ symbol: "ETH" });
     expect(r.source).toBe("CryptoPanic");
+    expect(r.data).toEqual([]);
   });
 
   it("searchKnowledgeBase.execute returns chunks", async () => {

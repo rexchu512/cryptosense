@@ -4,12 +4,19 @@ import { runChat } from "@/lib/ai/chat";
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const { messages, coinId } = await req.json();
-  const result = await runChat({ messages, coinId });
-  return createUIMessageStreamResponse({
-    stream: toUIMessageStream({
-      stream: result.stream,
-      onError: () => "分析時發生錯誤，請稍後再試。",
-    }),
-  });
+  try {
+    const { messages, coinId } = await req.json();
+    if (!Array.isArray(messages)) {
+      return Response.json({ error: "messages must be an array" }, { status: 400 });
+    }
+    const result = await runChat({ messages, coinId });
+    return createUIMessageStreamResponse({
+      stream: toUIMessageStream({
+        stream: result.stream,
+        onError: () => "分析時發生錯誤，請稍後再試。",
+      }),
+    });
+  } catch {
+    return Response.json({ error: "分析時發生錯誤，請稍後再試。" }, { status: 500 });
+  }
 }
