@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import type { MarketOverview, FearGreed } from "@/lib/tools/market";
 import { pct, usdCompact, changeClass } from "@/lib/format";
@@ -5,8 +6,10 @@ import { Sparkline } from "./Sparkline";
 
 export function MarketDashboard({ overview, fearGreed }: { overview: MarketOverview; fearGreed: FearGreed }) {
   const sorted = [...overview.coins].sort((a, b) => b.change24h - a.change24h);
-  const gainers = sorted.slice(0, 3), losers = sorted.slice(-3).reverse();
-  const Tile = ({ label, value, sub, subClass = "" }: any) => (
+  // 依漲跌正負分流，避免幣數少時同一幣同時出現在漲幅榜與跌幅榜
+  const gainers = sorted.filter((c) => c.change24h >= 0).slice(0, 3);
+  const losers = sorted.filter((c) => c.change24h < 0).slice(-3).reverse();
+  const Tile = ({ label, value, sub, subClass = "" }: { label: string; value: ReactNode; sub?: ReactNode; subClass?: string }) => (
     <div className="flex-1 rounded-lg border border-slate-800 bg-slate-900 p-3">
       <div className="text-[10px] uppercase tracking-wide text-slate-400">{label}</div>
       <div className="text-2xl font-bold text-white">{value}</div>
@@ -22,11 +25,11 @@ export function MarketDashboard({ overview, fearGreed }: { overview: MarketOverv
         <Tile label="BTC 主導" value={`${overview.btcDominance.toFixed(1)}%`} />
       </div>
       <div className="flex gap-3">
-        <div className="flex-1 rounded-lg border border-slate-800 bg-slate-900 p-3">
+        <div data-testid="gainers" className="flex-1 rounded-lg border border-slate-800 bg-slate-900 p-3">
           <div className="text-xs font-medium text-green-500">▲ 漲幅榜</div>
           {gainers.map((c) => <span key={c.id} className="mr-2">{c.symbol} <span className={changeClass(c.change24h)}>{pct(c.change24h)}</span></span>)}
         </div>
-        <div className="flex-1 rounded-lg border border-slate-800 bg-slate-900 p-3">
+        <div data-testid="losers" className="flex-1 rounded-lg border border-slate-800 bg-slate-900 p-3">
           <div className="text-xs font-medium text-red-500">▼ 跌幅榜</div>
           {losers.map((c) => <span key={c.id} className="mr-2">{c.symbol} <span className={changeClass(c.change24h)}>{pct(c.change24h)}</span></span>)}
         </div>

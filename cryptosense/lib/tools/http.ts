@@ -4,6 +4,8 @@ import type { ToolResult } from "./types";
 export function ok<T>(data: T, source: string): ToolResult<T> {
   return { data, source, timestamp: new Date().toISOString() };
 }
+/** Always returns `data: null`; the generic `T` only makes the result assignable to
+ *  a caller's `ToolResult<T>` return type. Consumers must null-check `.data` regardless. */
 export function fail<T = null>(source: string, error: string): ToolResult<T> {
   return { data: null, source, timestamp: new Date().toISOString(), error };
 }
