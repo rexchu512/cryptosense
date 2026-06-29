@@ -12,7 +12,7 @@ describe("getCoinData", () => {
       market_data: { current_price: { usd: 3540 }, price_change_percentage_24h: -0.82,
         market_cap: { usd: 4.25e11 }, total_volume: { usd: 1.8e10 }, circulating_supply: 1.2e8 } }) }));
     const r = await getCoinData("ethereum");
-    expect(r.data).toMatchObject({ id: "ethereum", symbol: "ETH", price: 3540, change24h: -0.82, volume24h: 1.8e10 });
+    expect(r.data).toMatchObject({ id: "ethereum", symbol: "ETH", name: "Ethereum", price: 3540, change24h: -0.82, marketCap: 4.25e11, volume24h: 1.8e10, circulatingSupply: 1.2e8 });
   });
   it("returns error on failure", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 404 }));
