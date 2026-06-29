@@ -7,11 +7,11 @@ export const dynamic = "force-dynamic";
 export default async function CoinPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const coin = await getCoinData(id);
-  const news = coin.data ? (await getCryptoNews(coin.data.symbol)).data ?? [] : [];
+  const newsRes = coin.data ? await getCryptoNews(coin.data.symbol) : null;
   return (
     <main className="mx-auto max-w-3xl p-6">
       {coin.data
-        ? <CoinDetail coin={coin.data} news={news} updatedAt={new Date(coin.timestamp).toLocaleString()} />
+        ? <CoinDetail coin={coin.data} news={newsRes?.data ?? []} newsError={newsRes?.error} updatedAt={new Date(coin.timestamp).toLocaleString()} />
         : <p className="text-slate-400">找不到此幣資料。</p>}
     </main>
   );
