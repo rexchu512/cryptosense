@@ -9,6 +9,9 @@ export async function POST(req: Request) {
     if (!Array.isArray(messages)) {
       return Response.json({ error: "messages must be an array" }, { status: 400 });
     }
+    if (coinId !== undefined && (typeof coinId !== "string" || coinId.length > 64)) {
+      return Response.json({ error: "invalid coinId" }, { status: 400 });
+    }
     const result = await runChat({ messages, coinId });
     return createUIMessageStreamResponse({
       stream: toUIMessageStream({
