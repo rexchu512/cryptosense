@@ -1,13 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useChat } from "@ai-sdk/react";
 import {
   DefaultChatTransport,
-  isTextUIPart,
   isToolUIPart,
   getToolName,
-  type UIMessage,
   type UIMessagePart,
   type UIDataTypes,
   type UITools,
@@ -23,12 +21,11 @@ const TOOL_LABEL: Record<string, string> = {
 };
 
 export function Chat({ coinId, symbol }: { coinId: string; symbol: string }) {
-  const { messages, sendMessage, status } = useChat({
-    transport: new DefaultChatTransport({
-      api: "/api/chat",
-      body: { coinId },
-    }),
-  });
+  const transport = useMemo(
+    () => new DefaultChatTransport({ api: "/api/chat", body: { coinId } }),
+    [coinId],
+  );
+  const { messages, sendMessage, status } = useChat({ transport });
 
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -128,6 +125,11 @@ export function Chat({ coinId, symbol }: { coinId: string; symbol: string }) {
         {/* Streaming indicator */}
         {status === "submitted" && (
           <div className="text-xs text-slate-400">彙整中…</div>
+        )}
+
+        {/* Error indicator */}
+        {status === "error" && (
+          <div className="text-xs text-red-400">回應失敗，請稍後重試。</div>
         )}
 
         {/* Contextual chips */}
