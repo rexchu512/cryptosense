@@ -44,7 +44,7 @@
 - 顏色：**綠漲紅跌**（crypto 慣例），全站統一；狀態用「圖示＋文字＋顏色」三重編碼。
 - 只用免費/公開 API；每個外部呼叫帶記憶體快取 TTL 並有 stale fallback。TTL：markets 90s、global 300s、coin 180s、F&G 3600s、**CryptoPanic 1200s（額度最稀缺）**。
 - TDD：含邏輯的 task 先寫失敗測試。純函式測試用 `node` 環境。頻繁 commit。
-- 對應 spec 成功條件：見 [spec](../specs/2026-06-19-cryptosense-spec.md) §5。
+- 對應 spec 成功條件：見 [spec](../specs/2026-06-29-cryptosense-spec.md) §5。
 - 執行順序：RAG（File Search，Task 8）排在 AI 問答（Task 9）之前完成，呼應「先把 RAG 建構出來」。
 - P1 **不做**：自建向量庫、DB（對話歷史/行為紀錄/風險歷史）、技術面指標/K 線圖、風險彙整卡、👍/👎 回饋、鏈上數據、GA4/觀測分析、影片/圖片。
 
