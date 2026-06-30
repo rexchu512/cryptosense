@@ -26,6 +26,13 @@ describe("CoinDetail", () => {
     expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
   });
 
+  it("renders news with an unparseable date without crashing (no date shown)", () => {
+    const badNews = [{ title: "Weird date item", url: "http://b", publishedAt: "not-a-date" }];
+    render(<CoinDetail coin={coin} news={badNews} updatedAt="t" />);
+    expect(screen.getByRole("link", { name: /Weird date item/ })).toBeInTheDocument();
+    expect(screen.queryByText(/Invalid Date/)).toBeNull();
+  });
+
   it("shows empty-news note when no news", () => {
     render(<CoinDetail coin={coin} news={[]} updatedAt="t" />);
     expect(screen.getByText(/近期無新聞/)).toBeInTheDocument();

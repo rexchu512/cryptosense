@@ -14,7 +14,10 @@ export async function getCryptoNews(
   symbol?: string,
 ): Promise<ToolResult<NewsItem[]>> {
   try {
-    const xml = await cachedText("https://cointelegraph.com/rss", { ttlMs: 1_200_000 });
+    const xml = await cachedText("https://cointelegraph.com/rss", {
+      ttlMs: 1_200_000,
+      headers: { accept: "application/rss+xml, text/xml" },
+    });
     const parsed = parser.parse(xml);
     const rawItems = parsed?.rss?.channel?.item ?? [];
     // 單筆時 fast-xml-parser 回物件而非陣列，需 normalize

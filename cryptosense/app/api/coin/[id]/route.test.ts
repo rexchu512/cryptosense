@@ -12,7 +12,7 @@ const mockCoin = vi.mocked(getCoinData);
 const mockNews = vi.mocked(getCryptoNews);
 
 beforeEach(() => {
-  mockNews.mockResolvedValue({ data: [], source: "CryptoPanic", timestamp: "t" } as any);
+  mockNews.mockResolvedValue({ data: [], source: "CoinTelegraph", timestamp: "t" } as any);
 });
 
 describe("GET /api/coin/[id]", () => {
