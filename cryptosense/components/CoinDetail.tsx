@@ -3,8 +3,15 @@ import type { CoinData } from "@/lib/tools/coin";
 import type { NewsItem } from "@/lib/tools/news";
 import { pct, changeClass, usdCompact } from "@/lib/format";
 
-const sent: Record<string, string> = { positive: "利多", negative: "利空", neutral: "中性" };
-const sentClass = (s: string) => (s === "negative" ? "text-red-500" : s === "positive" ? "text-green-500" : "text-slate-400");
+function safeLocalDate(pubDate: string): string {
+  try {
+    const d = new Date(pubDate);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleDateString("zh-TW");
+  } catch {
+    return "";
+  }
+}
 
 export function CoinDetail({ coin, news, updatedAt, newsError }: { coin: CoinData; news: NewsItem[]; updatedAt: string; newsError?: string }) {
   return (
@@ -25,16 +32,19 @@ export function CoinDetail({ coin, news, updatedAt, newsError }: { coin: CoinDat
       <div className="text-[10px] text-sky-400">資料來源：CoinGecko · {updatedAt}</div>
 
       <section className="rounded-lg border border-slate-800 bg-slate-900 p-3">
-        <h2 className="mb-2 font-semibold text-white">📰 新聞與情緒</h2>
+        <h2 className="mb-2 font-semibold text-white">📰 近期新聞</h2>
         {newsError
           ? <p className="text-slate-400">新聞暫時無法載入，請稍後再試。</p>
-          : news.length ? news.map((n, i) => (
-          <div key={n.url ?? i} className="border-t border-slate-800 py-1 text-sm">
-            <a className="text-sky-400 hover:underline" href={n.url} target="_blank" rel="noopener noreferrer">{n.title}</a>{" "}
-            <span data-testid={`news-sentiment-${i}`} className={sentClass(n.sentiment)}>{sent[n.sentiment]}</span>
-          </div>
-        )) : <p className="text-slate-400">近期無新聞。</p>}
-        <div className="mt-1 text-[10px] text-sky-400">來源：CryptoPanic · {updatedAt}</div>
+          : news.length ? news.map((n, i) => {
+            const dateStr = safeLocalDate(n.publishedAt);
+            return (
+              <div key={n.url ?? i} className="border-t border-slate-800 py-1 text-sm">
+                <a className="text-sky-400 hover:underline" href={n.url} target="_blank" rel="noopener noreferrer">{n.title}</a>
+                {dateStr && <span className="ml-2 text-xs text-slate-500">{dateStr}</span>}
+              </div>
+            );
+          }) : <p className="text-slate-400">近期無新聞。</p>}
+        <div className="mt-1 text-[10px] text-sky-400">來源：CoinTelegraph · {updatedAt}</div>
       </section>
 
       <Link href={`/coin/${coin.id}?chat=1`} className="block w-full rounded-lg bg-blue-600 py-3 text-center font-semibold text-white">

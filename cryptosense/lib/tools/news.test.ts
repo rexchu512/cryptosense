@@ -5,35 +5,88 @@ import { __clearCache } from "./http";
 
 beforeEach(() => __clearCache());
 
+const RSS_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>CoinTelegraph RSS</title>
+    <item>
+      <title>Bitcoin ETF Approved by SEC</title>
+      <link>https://cointelegraph.com/news/btc-etf</link>
+      <pubDate>Tue, 30 Jun 2026 07:00:49 +0000</pubDate>
+    </item>
+    <item>
+      <title>Ethereum Merge Anniversary Update</title>
+      <link>https://cointelegraph.com/news/eth-merge</link>
+      <pubDate>Mon, 29 Jun 2026 12:00:00 +0000</pubDate>
+    </item>
+  </channel>
+</rss>`;
+
 describe("getCryptoNews", () => {
-  it("maps all fields and derives sentiment (positive/negative/neutral)", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ results: [
-      { title: "ETF approved", url: "http://a", published_at: "2026-06-18T00:00:00Z", votes: { positive: 10, negative: 1 } },
-      { title: "Exchange hacked", url: "http://b", published_at: "2026-06-19T00:00:00Z", votes: { positive: 0, negative: 9 } },
-      { title: "Routine update", url: "http://c", published_at: "2026-06-20T00:00:00Z", votes: { positive: 3, negative: 3 } },
-    ] }) });
+  it("maps title/url/publishedAt from CoinTelegraph RSS, source=CoinTelegraph", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve(RSS_XML),
+    });
     vi.stubGlobal("fetch", fetchMock);
-    const r = await getCryptoNews("ETH");
-    expect(r.source).toBe("CryptoPanic");
-    expect(fetchMock.mock.calls[0][0]).toContain("/api/developer/v2/posts/");
-    expect(fetchMock.mock.calls[0][0]).toContain("currencies=ETH");
-    // 完整欄位映射（含 publishedAt 來自 published_at）
-    expect(r.data![0]).toEqual({ title: "ETF approved", url: "http://a", publishedAt: "2026-06-18T00:00:00Z", sentiment: "positive" });
-    expect(r.data![1].sentiment).toBe("negative");
-    expect(r.data![2].sentiment).toBe("neutral"); // pos === neg
+    const r = await getCryptoNews("BTC");
+    expect(r.source).toBe("CoinTelegraph");
+    expect(fetchMock.mock.calls[0][0]).toContain("cointelegraph.com/rss");
+    expect(r.data![0]).toEqual({
+      title: "Bitcoin ETF Approved by SEC",
+      url: "https://cointelegraph.com/news/btc-etf",
+      publishedAt: "Tue, 30 Jun 2026 07:00:49 +0000",
+    });
+    expect(r.data![1]).toEqual({
+      title: "Ethereum Merge Anniversary Update",
+      url: "https://cointelegraph.com/news/eth-merge",
+      publishedAt: "Mon, 29 Jun 2026 12:00:00 +0000",
+    });
+    // 結果無 sentiment 欄位
+    expect((r.data![0] as any).sentiment).toBeUndefined();
   });
 
-  it("omits currencies param when no symbol is given", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ results: [] }) });
-    vi.stubGlobal("fetch", fetchMock);
-    await getCryptoNews();
-    expect(fetchMock.mock.calls[0][0]).not.toContain("currencies=");
+  it("limits to first 8 items when feed has more", async () => {
+    const items = Array.from({ length: 12 }, (_, i) => `
+    <item>
+      <title>News ${i}</title>
+      <link>https://cointelegraph.com/news/${i}</link>
+      <pubDate>Tue, 30 Jun 2026 0${i % 10}:00:00 +0000</pubDate>
+    </item>`).join("");
+    const xml = `<?xml version="1.0"?><rss version="2.0"><channel>${items}</channel></rss>`;
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, text: () => Promise.resolve(xml) }));
+    const r = await getCryptoNews();
+    expect(r.data).toHaveLength(8);
   });
 
-  it("returns error on failure (data null, no fabrication)", async () => {
+  it("handles single-item feed (normalize to array)", async () => {
+    const singleItemXml = `<?xml version="1.0"?><rss version="2.0"><channel>
+      <item>
+        <title>Solo News</title>
+        <link>https://cointelegraph.com/news/solo</link>
+        <pubDate>Tue, 30 Jun 2026 09:00:00 +0000</pubDate>
+      </item>
+    </channel></rss>`;
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, text: () => Promise.resolve(singleItemXml) }));
+    const r = await getCryptoNews();
+    expect(Array.isArray(r.data)).toBe(true);
+    expect(r.data).toHaveLength(1);
+    expect(r.data![0].title).toBe("Solo News");
+  });
+
+  it("symbol param does not filter (P1 uses global feed)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: () => Promise.resolve(RSS_XML) });
+    vi.stubGlobal("fetch", fetchMock);
+    await getCryptoNews("ETH");
+    // URL 依然是總體 RSS，不帶 coin 參數
+    expect(fetchMock.mock.calls[0][0]).not.toContain("ETH");
+  });
+
+  it("returns error result (data null) when fetch fails", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
     const r = await getCryptoNews("ETH");
     expect(r.data).toBeNull();
-    expect(r.error).toContain("500");
+    expect(r.error).toBeDefined();
+    expect(r.source).toBe("CoinTelegraph");
   });
 });

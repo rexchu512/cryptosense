@@ -11,7 +11,7 @@ export const cryptoTools = {
     execute: async ({ id }) => getCoinData(id),
   }),
   getCryptoNews: tool({
-    description: "取得某幣近期新聞與情緒（利多/利空/中性）",
+    description: "取得某幣近期新聞標題（由你依標題判讀情緒）",
     inputSchema: z.object({ symbol: z.string().describe("幣符號如 ETH") }),
     execute: async ({ symbol }) => getCryptoNews(symbol),
   }),

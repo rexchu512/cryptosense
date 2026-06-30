@@ -5,7 +5,7 @@ vi.mock("@/lib/tools/coin", () => ({
   getCoinData: vi.fn().mockResolvedValue({ data: { symbol: "ETH" }, source: "CoinGecko", timestamp: "t" }),
 }));
 vi.mock("@/lib/tools/news", () => ({
-  getCryptoNews: vi.fn().mockResolvedValue({ data: [], source: "CryptoPanic", timestamp: "t" }),
+  getCryptoNews: vi.fn().mockResolvedValue({ data: [], source: "CoinTelegraph", timestamp: "t" }),
 }));
 vi.mock("@/lib/rag/fileSearch", () => ({
   searchKnowledgeBase: vi.fn().mockResolvedValue({ data: [{ text: "x", source: "n.md" }], source: "KnowledgeBase", timestamp: "t" }),
@@ -25,7 +25,7 @@ describe("cryptoTools", () => {
 
   it("getCryptoNews.execute returns ToolResult", async () => {
     const r = await (cryptoTools.getCryptoNews as any).execute({ symbol: "ETH" });
-    expect(r.source).toBe("CryptoPanic");
+    expect(r.source).toBe("CoinTelegraph");
     expect(r.data).toEqual([]);
   });
 
