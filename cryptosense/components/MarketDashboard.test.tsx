@@ -3,8 +3,8 @@ import { render, screen } from "@testing-library/react";
 import { MarketDashboard } from "./MarketDashboard";
 
 const overview = { totalMarketCap: 3.42e12, totalVolume: 9.8e10, btcDominance: 54.3, coins: [
-  { id: "bitcoin", symbol: "BTC", name: "Bitcoin", price: 67200, change24h: 1.2, marketCap: 1.3e12, spark7d: [1,2,3] },
-  { id: "dogecoin", symbol: "DOGE", name: "Dogecoin", price: 0.12, change24h: -5.2, marketCap: 1e10, spark7d: [3,2,1] },
+  { id: "bitcoin", symbol: "BTC", name: "Bitcoin", image: "https://example.com/btc.png", marketCapRank: 1, price: 67200, change1h: 0.1, change24h: 1.2, change7d: 5.0, marketCap: 1.3e12, spark7d: [1,2,3], rankChange: null },
+  { id: "dogecoin", symbol: "DOGE", name: "Dogecoin", image: "https://example.com/doge.png", marketCapRank: 10, price: 0.12, change1h: -0.2, change24h: -5.2, change7d: -3.0, marketCap: 1e10, spark7d: [3,2,1], rankChange: null },
 ] };
 const fg = { value: 52, label: "Neutral" };
 
