@@ -1,12 +1,27 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
 
-// Mock useChat — only test static UI (capability frame / disclaimer / chips)
+// Mock useChat — module-level mock state lets each test control messages/status.
+const mockUseChat = vi.fn();
 vi.mock("@ai-sdk/react", () => ({
-  useChat: () => ({
-    messages: [],
+  useChat: (...args: unknown[]) => mockUseChat(...args),
+}));
+
+import { Chat } from "./Chat";
+
+type ChatStatus = "ready" | "submitted" | "streaming" | "error";
+
+function baseChatReturn(
+  overrides: Partial<Omit<ReturnType<typeof defaultReturn>, "status">> & { status?: ChatStatus } = {},
+) {
+  return { ...defaultReturn(), ...overrides };
+}
+
+function defaultReturn() {
+  return {
+    messages: [] as unknown[],
     sendMessage: vi.fn(),
-    status: "ready" as const,
+    status: "ready" as ChatStatus,
     stop: vi.fn(),
     id: "test-chat",
     setMessages: vi.fn(),
@@ -17,12 +32,26 @@ vi.mock("@ai-sdk/react", () => ({
     addToolOutput: vi.fn(),
     addToolApprovalResponse: vi.fn(),
     clearError: vi.fn(),
-  }),
-}));
-
-import { Chat } from "./Chat";
+  };
+}
 
 describe("Chat", () => {
+  beforeEach(() => {
+    mockUseChat.mockReset();
+    mockUseChat.mockReturnValue(baseChatReturn());
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ suggestions: [] }),
+      }),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("frames capability + disclaimer, not 'ask me anything'", () => {
     render(<Chat coinId="ethereum" symbol="ETH" />);
     expect(screen.getByText(/風險面、近期新聞與個人知識/)).toBeInTheDocument();
@@ -30,10 +59,146 @@ describe("Chat", () => {
     expect(screen.queryByText(/問我任何事/)).toBeNull();
   });
 
-  it("renders contextual chips containing the symbol", () => {
+  it("shows seed chips with the symbol before first answer", () => {
     render(<Chat coinId="ethereum" symbol="ETH" />);
-    expect(
-      screen.getByRole("button", { name: /ETH 主要下行風險/ }),
-    ).toBeInTheDocument();
+    const chipButtons = screen.getAllByRole("button", { name: /ETH/ });
+    expect(chipButtons.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("renders a disclaimer near every assistant answer, not only in the footer", () => {
+    mockUseChat.mockReturnValue(
+      baseChatReturn({
+        messages: [
+          {
+            id: "m1",
+            role: "user",
+            parts: [{ type: "text", text: "現在該進場嗎？" }],
+          },
+          {
+            id: "m2",
+            role: "assistant",
+            parts: [{ type: "text", text: "風險偏中性，正反因素並陳。" }],
+          },
+        ],
+      }),
+    );
+    render(<Chat coinId="ethereum" symbol="ETH" />);
+    // At least 2 occurrences: header/persistent notice + one tied to the assistant answer.
+    const notices = screen.getAllByText(/非投資建議/);
+    expect(notices.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("renders assistant text via Markdown and a citation panel sourced from searchKnowledgeBase tool output", () => {
+    mockUseChat.mockReturnValue(
+      baseChatReturn({
+        messages: [
+          {
+            id: "m1",
+            role: "user",
+            parts: [{ type: "text", text: "ETH 風險？" }],
+          },
+          {
+            id: "m2",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-searchKnowledgeBase",
+                toolCallId: "call1",
+                state: "output-available",
+                input: { query: "ETH risk" },
+                output: {
+                  data: [{ text: "節錄內容", source: "risk-notes.md" }],
+                },
+              },
+              { type: "text", text: "**風險偏負面**，理由如下。" },
+            ],
+          },
+        ],
+      }),
+    );
+    render(<Chat coinId="ethereum" symbol="ETH" />);
+    expect(screen.getByText("風險偏負面")).toBeInTheDocument();
+    expect(screen.getByText(/risk-notes\.md/)).toBeInTheDocument();
+  });
+
+  it("shows a Telemetry Strip with Chinese tool labels distinguishing in-progress vs done", () => {
+    mockUseChat.mockReturnValue(
+      baseChatReturn({
+        status: "streaming",
+        messages: [
+          {
+            id: "m1",
+            role: "user",
+            parts: [{ type: "text", text: "ETH 現在行情？" }],
+          },
+          {
+            id: "m2",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-getCoinData",
+                toolCallId: "call1",
+                state: "output-available",
+                input: {},
+                output: { price: 1 },
+              },
+              {
+                type: "tool-getCryptoNews",
+                toolCallId: "call2",
+                state: "input-streaming",
+                input: {},
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    render(<Chat coinId="ethereum" symbol="ETH" />);
+    expect(screen.getByText(/取得行情/)).toBeInTheDocument();
+    expect(screen.getByText(/檢索新聞/)).toBeInTheDocument();
+  });
+
+  it("replaces seed chips with dynamic suggestions fetched after an assistant answer completes", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ suggestions: ["ETH 近 24hr 波動？", "ETH vs BTC 風險", "知識庫怎麼看 ETH"] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const messages = [
+      { id: "m1", role: "user", parts: [{ type: "text", text: "ETH 風險？" }] },
+      { id: "m2", role: "assistant", parts: [{ type: "text", text: "風險偏中性。" }] },
+    ];
+    // Start "streaming" (busy), then transition to "ready" — mirrors the real
+    // useChat lifecycle so the completion effect fires.
+    mockUseChat.mockReturnValue(baseChatReturn({ messages, status: "streaming" }));
+    const { rerender } = render(<Chat coinId="ethereum" symbol="ETH" />);
+
+    mockUseChat.mockReturnValue(baseChatReturn({ messages, status: "ready" }));
+    rerender(<Chat coinId="ethereum" symbol="ETH" />);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/suggestions", expect.any(Object)));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "知識庫怎麼看 ETH" })).toBeInTheDocument(),
+    );
+  });
+
+  it("keeps default chips if the suggestions fetch fails (no error shown to user)", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error("network down"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const messages = [
+      { id: "m1", role: "user", parts: [{ type: "text", text: "ETH 風險？" }] },
+      { id: "m2", role: "assistant", parts: [{ type: "text", text: "風險偏中性。" }] },
+    ];
+    mockUseChat.mockReturnValue(baseChatReturn({ messages, status: "streaming" }));
+    const { rerender } = render(<Chat coinId="ethereum" symbol="ETH" />);
+
+    mockUseChat.mockReturnValue(baseChatReturn({ messages, status: "ready" }));
+    rerender(<Chat coinId="ethereum" symbol="ETH" />);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(screen.getAllByRole("button", { name: /ETH/ }).length).toBeGreaterThanOrEqual(3);
+    expect(screen.queryByText(/失敗|錯誤/)).toBeNull();
   });
 });
