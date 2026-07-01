@@ -1,9 +1,9 @@
 # CryptoSense P1.x — Commander Agent 強化 Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development（建議）或 superpowers:executing-plans 逐 task 實作。步驟用 `- [ ]` 追蹤。
-> **依據**：研究彙整 `.superpowers/sdd/research/00-synthesis.md`（細節在 01–06）；spec `docs/superpowers/specs/2026-06-29-cryptosense-spec.md` §5 F3/F4；**設計準則 `cryptosense/DESIGN-coinbase (1).md`（Coinbase 風，已定案；mockup 見 `.superpowers/brainstorm/`）**。
+> **依據**：研究彙整 `.superpowers/sdd/research/00-synthesis.md`（細節在 01–06）＋設計研究 `07-11`（NN/g、分析工具前例、風險溝通、排版）；spec `docs/superpowers/specs/2026-06-29-cryptosense-spec.md` §5 F3/F4；**設計準則 `cryptosense/DESIGN-v2-research-driven.md`（研究工具版，取代先前 Coinbase 風探索，已核准；mockup 見 `.superpowers/brainstorm/5638-1782841994/content/dashboard-v2-research.html`、`coin-chat-v2-research.html`）**。
 
-**Goal:** 把現有 AI 問答升級為「commander agent」：工具鎖定當前幣、知識庫改用最新 OpenAI Responses API file_search（可追溯原文引文）、範疇守門＋注入防禦、每次回答後動態產 3 個建議 chips、並依 **Coinbase 風 design 系統**落地視覺（白底編輯感 + 單一 Coinbase Blue；AI 問答做成招牌深色 product-UI 卡片內含 Telemetry Strip、引文區；字體/tokens）。
+**Goal:** 把現有 AI 問答升級為「commander agent」：工具鎖定當前幣、知識庫改用最新 OpenAI Responses API file_search（可追溯原文引文）、範疇守門＋注入防禦、每次回答後動態產 3 個建議 chips、並依 **v2 研究工具 design 系統**落地視覺（白底 + 單一稀缺藍色，僅用於知識庫引文；無登入/CTA 行銷語彙；AI 問答做成招牌深色 product-UI 卡片內含 Telemetry Strip、先結論後但書的 verdict card、正負面觀點並陳、引文區）。
 
 **Architecture:** 在現有 Next 16 + Vercel AI SDK v7 架構上：(1) `lib/ai/tools.ts` 改為 `makeCryptoTools({coinId,symbol})` 工廠，工具鎖定當前幣；(2) `lib/rag/fileSearch.ts` 改為**直接呼叫 openai v6 Responses API file_search**（AI SDK 不支援 `include`，issue #7636）；(3) 新增 `/api/suggestions`（`generateText`+`Output.object`+zod）；(4) `lib/ai/prompt.ts` 加四層守門；(5) 前端 `Chat.tsx` 加 `CitationPanel`、Telemetry Strip、動態 chips、串流 markdown 最佳化；(6) Tailwind v4 `@theme` tokens + `next/font` 三字體。
 
@@ -16,7 +16,7 @@
 - AI 工具**剛好 3 支**：`getCoinData` / `getCryptoNews` / `searchKnowledgeBase`（經 `makeCryptoTools` 工廠產生，鎖定當前幣）。
 - **File Search 必須用 OpenAI 最新 Responses API**（`responses.create` + `tools:[{type:'file_search'}]` + `include:['file_search_call.results']`），直接呼叫 openai v6 SDK；不依賴 `score_threshold`。
 - AI SDK v7：`await convertToModelMessages(...)`（async）；route 用 `createUIMessageStreamResponse({stream: toUIMessageStream({stream: result.stream, onError})})`；多步用 `stopWhen: isStepCount(n)`。
-- **Coinbase 風設計系統**（見 `DESIGN-coinbase (1).md`）：白底 `#ffffff` + ink `#0a0b0d` + 單一 Coinbase Blue `#0052ff`（wordmark/CTA/知識庫引文邊框，稀缺使用）；漲跌**只用文字色**（`--up #05b169` / `--down #cf202f`）但仍加 ▲▼ 圖示滿足無障礙三重編碼；卡片 24px 圓角、pill 按鈕 100px、圖示正圓；Inter（display 400+負字距 / body 400·600）、數字用 Geist Mono 500。**AI 問答做成招牌深色 product-UI 卡片（`#0a0b0d`/`#16181c`）**；知識庫來源用稀缺的藍色左邊框與公開來源區隔（此系統無第二品牌色、無紫色）。
+- **v2 研究工具設計系統**（見 `DESIGN-v2-research-driven.md`）：白底 `#ffffff` + ink `#0a0b0d` + 單一藍色 `#0052ff`（**只用於 wordmark 與知識庫引文左邊框，無 CTA 按鈕、無登入/行銷語彙**）；漲跌/正負面**一律「顏色＋▲▼或✅⚠️圖示＋文字標籤」三重編碼**，跌/負面預設用磚橘色 `--down-soft #b3541f`、飽和紅 `--down #cf202f` 保留給真正高風險/嚴重情境；卡片 24px 圓角、chip/tag 用 pill 100px（不再是「開始」CTA 語彙）、圖示正圓；Inter（body 400·600）、數字用 Geist Mono 500（tabular-nums）。**AI 問答做成招牌深色 product-UI 卡片，改用非純黑 `#121316`/`#1b1d22`/`#24262c` 三層表面（避免 halation）**，卡片內容遵守：先一句話結論+必要但書、信心度用「高/中/低＋一句理由」而非裸百分比、正負面觀點必然並陳、免責聲明嵌入 verdict card 並綁定查證動作；**知識庫引文（藍色左邊框）與公開新聞/行情引文（中性灰邊框）視覺區隔，此系統無第二品牌色、無紫色**。市場總覽表格走高密度 Bloomberg/Linear 風：首欄+表頭 sticky、數字靠右等寬對齊、斑馬紋。
 - **模型用 env 設定**：`openai(process.env.OPENAI_MODEL ?? "gpt-4o")`（使用者 `.env.local` 設 `OPENAI_MODEL`，如 `gpt-5.4-mini`）；File Search 與 suggestions 亦讀同一 env（或各自小模型），不寫死。
 - TDD：含邏輯的 task 先寫失敗測試；`ai/test` 用 `MockLanguageModelV4`；`server-only` 已於 `vitest.setup.ts` mock。每 task 跑 `npm run typecheck` + `npm test`，UI/route 影響大時加 `npm run build`。
 - 對齊 spec §5 F3/F4 與 `DESIGN-coinbase (1).md`。
