@@ -1,16 +1,16 @@
-import { streamText, isStepCount, convertToModelMessages, type LanguageModel, type UIMessage } from "ai";
+import { streamText, stepCountIs, convertToModelMessages, type LanguageModel, type UIMessage } from "ai";
 import { openai } from "@ai-sdk/openai";
-import { SYSTEM_PROMPT } from "./prompt";
-import { cryptoTools } from "./tools";
+import { buildSystemPrompt } from "./prompt";
+import { makeCryptoTools } from "./tools";
 
-export async function runChat({ messages, coinId, model }: { messages: UIMessage[]; coinId?: string; model?: LanguageModel }) {
-  const system = coinId ? `${SYSTEM_PROMPT}\n\n目前使用者正在看的幣 id：${coinId}` : SYSTEM_PROMPT;
-  const modelMessages = await convertToModelMessages(messages);
+export async function runChat({ messages, coinId, symbol, model }: {
+  messages: UIMessage[]; coinId?: string; symbol?: string; model?: LanguageModel;
+}) {
   return streamText({
-    model: model ?? openai("gpt-4o"),
-    system,
-    messages: modelMessages,
-    tools: cryptoTools,
-    stopWhen: isStepCount(6),
+    model: model ?? openai(process.env.OPENAI_MODEL ?? "gpt-4o"),
+    system: buildSystemPrompt({ coinId, symbol }),
+    messages: await convertToModelMessages(messages),
+    tools: makeCryptoTools({ coinId, symbol }),
+    stopWhen: stepCountIs(6),
   });
 }

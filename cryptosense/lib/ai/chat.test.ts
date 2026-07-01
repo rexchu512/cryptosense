@@ -28,6 +28,8 @@ describe("runChat", () => {
 
     const result = await runChat({
       messages: [{ role: "user", id: "m1", parts: [{ type: "text", text: "ETH?" }] }],
+      coinId: "ethereum",
+      symbol: "ETH",
       model,
     });
 
