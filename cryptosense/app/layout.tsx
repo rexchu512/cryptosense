@@ -1,16 +1,9 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const sans = Inter({ subsets: ["latin"], variable: "--font-sans" });
+const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
   title: "CryptoSense · 加密貨幣風險研究助手",
@@ -25,7 +18,7 @@ export default function RootLayout({
   return (
     <html
       lang="zh-Hant"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${sans.variable} ${mono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
