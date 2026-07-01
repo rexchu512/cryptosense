@@ -4,20 +4,22 @@ import { getCoinData } from "@/lib/tools/coin";
 import { getCryptoNews } from "@/lib/tools/news";
 import { searchKnowledgeBase } from "@/lib/rag/fileSearch";
 
-export const cryptoTools = {
-  getCoinData: tool({
-    description: "取得某幣的即時行情（價格、24h 漲跌、市值、成交量、流通量）",
-    inputSchema: z.object({ id: z.string().describe("CoinGecko id, 如 ethereum") }),
-    execute: async ({ id }) => getCoinData(id),
-  }),
-  getCryptoNews: tool({
-    description: "取得某幣近期新聞標題（由你依標題判讀情緒）",
-    inputSchema: z.object({ symbol: z.string().describe("幣符號如 ETH") }),
-    execute: async ({ symbol }) => getCryptoNews(symbol),
-  }),
-  searchKnowledgeBase: tool({
-    description: "檢索使用者的個人知識庫（自有筆記/對話），回傳帶來源的片段",
-    inputSchema: z.object({ query: z.string() }),
-    execute: async ({ query }) => searchKnowledgeBase(query),
-  }),
-};
+export function makeCryptoTools(ctx: { coinId?: string; symbol?: string }) {
+  return {
+    getCoinData: tool({
+      description: "取得幣的即時行情（價格/24h漲跌/市值/量）。省略 id 時取當前幣；可帶其他 id（如 bitcoin）做對照。",
+      inputSchema: z.object({ id: z.string().optional().describe("CoinGecko id；省略=當前幣") }),
+      execute: async ({ id }) => getCoinData(id ?? ctx.coinId ?? ""),
+    }),
+    getCryptoNews: tool({
+      description: "取得近期加密新聞標題（總體 feed；情緒由你依標題判讀）。",
+      inputSchema: z.object({}),
+      execute: async () => getCryptoNews(ctx.symbol),
+    }),
+    searchKnowledgeBase: tool({
+      description: "檢索使用者個人知識庫（自有筆記），回傳帶來源的片段；檢索以當前幣為標的。",
+      inputSchema: z.object({ query: z.string() }),
+      execute: async ({ query }) => searchKnowledgeBase(`${ctx.symbol ?? ""} ${query}`.trim()),
+    }),
+  };
+}
