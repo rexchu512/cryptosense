@@ -2,24 +2,28 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { CoinDetail } from "./CoinDetail";
 
-const coin = { id: "ethereum", symbol: "ETH", name: "Ethereum", image: "", marketCapRank: 2, price: 3540.18, change24h: -0.82, change7d: 2.1, marketCap: 1, volume24h: 1, circulatingSupply: 1, spark7d: [] };
-// NewsItem 新型別：無 sentiment 欄位
+const coin = {
+  id: "ethereum", symbol: "ETH", name: "Ethereum", image: "https://x/eth.png", marketCapRank: 2,
+  price: 3540.18, change24h: -0.82, change7d: -2.3, marketCap: 4.256e11, volume24h: 1.8e10,
+  circulatingSupply: 1.202e8, spark7d: [3600, 3580, 3550, 3540],
+};
 const news = [{ title: "ETF approved", url: "http://a", publishedAt: "2026-06-18T00:00:00Z" }];
 
 describe("CoinDetail", () => {
-  it("renders header, sources, news (time + safe external link), AI CTA", () => {
+  it("renders header, real logo, stat grid, trend chart, sources, news, AI prompt", () => {
     render(<CoinDetail coin={coin} news={news} updatedAt="2026-06-19 14:32" />);
     expect(screen.getByText(/Ethereum/)).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "ETH" })).toHaveAttribute("src", "https://x/eth.png");
+    // 4 格統計
+    expect(screen.getByText("#2")).toBeInTheDocument();
+    expect(screen.getByText(/425\.6[BK]?/)).toBeInTheDocument(); // 市值 usdCompact
+    // 趨勢圖主動陳述標題
+    expect(screen.getByText("ETH 7 日下跌 2.3%")).toBeInTheDocument();
     expect(screen.getByText(/我現在該進場/)).toBeInTheDocument();
-    // 行情來源不變
     expect(screen.getByText(/資料來源：CoinGecko/)).toBeInTheDocument();
-    // 新聞來源改為 CoinTelegraph
     expect(screen.getByText(/來源：CoinTelegraph/)).toBeInTheDocument();
-    // 無 sentiment 標籤（利多/利空/中性）
     expect(screen.queryByText(/利多|利空|中性/)).toBeNull();
-    // 24h 漲跌 -0.82 → 紅
-    expect(screen.getByTestId("coin-change").className).toMatch(/text-red/);
-    // 新聞連結安全開新分頁
+    expect(screen.getByTestId("coin-change").className).toMatch(/text-down/);
     const link = screen.getByRole("link", { name: /ETF approved/ });
     expect(link).toHaveAttribute("href", "http://a");
     expect(link).toHaveAttribute("target", "_blank");
@@ -42,5 +46,11 @@ describe("CoinDetail", () => {
     render(<CoinDetail coin={coin} news={[]} newsError="HTTP 500" updatedAt="t" />);
     expect(screen.getByText(/新聞暫時無法載入/)).toBeInTheDocument();
     expect(screen.queryByText(/近期無新聞/)).toBeNull();
+  });
+
+  it("omits the trend chart when there is not enough sparkline data", () => {
+    const thinCoin = { ...coin, spark7d: [3540] };
+    render(<CoinDetail coin={thinCoin} news={[]} updatedAt="t" />);
+    expect(screen.queryByText(/7 日/)).toBeNull();
   });
 });

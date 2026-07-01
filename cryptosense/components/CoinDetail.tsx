@@ -1,7 +1,8 @@
-import Link from "next/link";
 import type { CoinData } from "@/lib/tools/coin";
 import type { NewsItem } from "@/lib/tools/news";
-import { pct, changeClass, usdCompact } from "@/lib/format";
+import { pct, changeClass, usdCompact, numCompact } from "@/lib/format";
+import { CoinIcon } from "./CoinIcon";
+import { PriceTrendChart } from "./PriceTrendChart";
 
 function safeLocalDate(pubDate: string): string {
   try {
@@ -17,38 +18,63 @@ export function CoinDetail({ coin, news, updatedAt, newsError }: { coin: CoinDat
   return (
     <div className="space-y-4">
       <div className="flex items-end justify-between">
-        <div>
-          <div className="text-[10px] uppercase tracking-wide text-slate-400">{coin.name} · {coin.symbol}</div>
-          <div className="text-3xl font-bold text-white">${coin.price.toLocaleString()}{" "}
-            <span data-testid="coin-change" className={`text-sm ${changeClass(coin.change24h)}`}>{pct(coin.change24h)} (24h)</span></div>
+        <div className="flex items-center gap-3">
+          <CoinIcon image={coin.image} symbol={coin.symbol} size={36} />
+          <div>
+            <div className="text-[10px] uppercase tracking-wide text-cb-muted">{coin.name} · {coin.symbol}</div>
+            <div className="font-mono text-3xl font-medium tabular-nums text-ink">
+              ${coin.price.toLocaleString()}{" "}
+              <span data-testid="coin-change" className={`text-sm ${changeClass(coin.change24h)}`}>{pct(coin.change24h)} (24h)</span>
+            </div>
+          </div>
         </div>
-        <div className="text-right text-xs text-slate-400">資料更新<br />{updatedAt}</div>
+        <div className="text-right text-xs text-cb-muted">資料更新<br />{updatedAt}</div>
       </div>
 
-      <div className="flex gap-3 text-sm text-slate-300">
-        <div>市值 <span className="text-white">{usdCompact(coin.marketCap)}</span></div>
-        <div>24h 量 <span className="text-white">{usdCompact(coin.volume24h)}</span></div>
+      <div className="grid grid-cols-4 gap-3">
+        <div className="rounded-xl border border-hairline p-3">
+          <div className="text-[10px] uppercase text-cb-muted">市值排名</div>
+          <div className="font-mono text-[15px] font-medium text-ink">{coin.marketCapRank ? `#${coin.marketCapRank}` : "—"}</div>
+        </div>
+        <div className="rounded-xl border border-hairline p-3">
+          <div className="text-[10px] uppercase text-cb-muted">市值</div>
+          <div className="font-mono text-[15px] font-medium text-ink">{usdCompact(coin.marketCap)}</div>
+        </div>
+        <div className="rounded-xl border border-hairline p-3">
+          <div className="text-[10px] uppercase text-cb-muted">24H 量</div>
+          <div className="font-mono text-[15px] font-medium text-ink">{usdCompact(coin.volume24h)}</div>
+        </div>
+        <div className="rounded-xl border border-hairline p-3">
+          <div className="text-[10px] uppercase text-cb-muted">流通量</div>
+          <div className="font-mono text-[13px] font-medium text-ink">{numCompact(coin.circulatingSupply)} {coin.symbol}</div>
+        </div>
       </div>
-      <div className="text-[10px] text-sky-400">資料來源：CoinGecko · {updatedAt}</div>
+      <div className="text-[10px] text-cb-primary">資料來源：CoinGecko · {updatedAt}</div>
 
-      <section className="rounded-lg border border-slate-800 bg-slate-900 p-3">
-        <h2 className="mb-2 font-semibold text-white">📰 近期新聞</h2>
+      <PriceTrendChart symbol={coin.symbol} data={coin.spark7d} change7d={coin.change7d} />
+
+      <section className="rounded-2xl border border-hairline p-4">
+        <h2 className="mb-2 font-semibold text-ink">📰 近期新聞</h2>
         {newsError
-          ? <p className="text-slate-400">新聞暫時無法載入，請稍後再試。</p>
+          ? <p className="text-cb-muted">新聞暫時無法載入，請稍後再試。</p>
           : news.length ? news.map((n, i) => {
             const dateStr = safeLocalDate(n.publishedAt);
             return (
-              <div key={n.url ?? i} className="border-t border-slate-800 py-1 text-sm">
-                <a className="text-sky-400 hover:underline" href={n.url} target="_blank" rel="noopener noreferrer">{n.title}</a>
-                {dateStr && <span className="ml-2 text-xs text-slate-500">{dateStr}</span>}
+              <div key={n.url ?? i} className="border-t border-hairline-soft py-1 text-sm">
+                <a className="text-ink hover:underline" href={n.url} target="_blank" rel="noopener noreferrer">{n.title}</a>
+                {dateStr && <span className="ml-2 text-xs text-cb-muted">{dateStr}</span>}
               </div>
             );
-          }) : <p className="text-slate-400">近期無新聞。</p>}
-        <div className="mt-1 text-[10px] text-sky-400">來源：CoinTelegraph · {updatedAt}</div>
+          }) : <p className="text-cb-muted">近期無新聞。</p>}
+        <div className="mt-1 text-[10px] text-cb-muted">來源：CoinTelegraph · {updatedAt}</div>
       </section>
 
-      <Link href={`/coin/${coin.id}?chat=1`} className="block w-full rounded-lg bg-blue-600 py-3 text-center font-semibold text-white">
-        💬 針對 {coin.symbol} 問 AI：「我現在該進場嗎？」</Link>
+      <a
+        href="#ai-chat"
+        className="flex items-center justify-center gap-2 rounded-2xl border border-hairline bg-soft py-3 text-sm font-medium text-ink hover:bg-strong"
+      >
+        💬 針對 {coin.symbol} 問 AI：「我現在該進場嗎？」
+      </a>
     </div>
   );
 }
