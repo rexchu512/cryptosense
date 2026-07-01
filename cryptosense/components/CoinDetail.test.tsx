@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { CoinDetail } from "./CoinDetail";
 
-const coin = { id: "ethereum", symbol: "ETH", name: "Ethereum", price: 3540.18, change24h: -0.82, marketCap: 1, volume24h: 1, circulatingSupply: 1 };
+const coin = { id: "ethereum", symbol: "ETH", name: "Ethereum", image: "", marketCapRank: 2, price: 3540.18, change24h: -0.82, change7d: 2.1, marketCap: 1, volume24h: 1, circulatingSupply: 1, spark7d: [] };
 // NewsItem 新型別：無 sentiment 欄位
 const news = [{ title: "ETF approved", url: "http://a", publishedAt: "2026-06-18T00:00:00Z" }];
 
