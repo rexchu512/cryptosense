@@ -549,6 +549,7 @@ export async function searchCoins(query: string): Promise<ToolResult<CoinSearchR
 ```ts
 // @vitest-environment node
 import { describe, it, expect, vi } from "vitest";
+import { NextRequest } from "next/server";
 
 vi.mock("@/lib/tools/search", () => ({ searchCoins: vi.fn() }));
 
@@ -558,18 +559,19 @@ import { searchCoins } from "@/lib/tools/search";
 describe("GET /api/search", () => {
   it("passes the q query param through to searchCoins", async () => {
     vi.mocked(searchCoins).mockResolvedValue({ data: [], source: "CoinGecko", timestamp: "t" });
-    const res = await GET(new Request("http://x/api/search?q=eth"));
+    const res = await GET(new NextRequest("http://x/api/search?q=eth"));
     expect(searchCoins).toHaveBeenCalledWith("eth");
     const body = await res.json();
     expect(body.data).toEqual([]);
   });
   it("defaults to an empty query string when q is missing", async () => {
     vi.mocked(searchCoins).mockResolvedValue({ data: [], source: "CoinGecko", timestamp: "t" });
-    await GET(new Request("http://x/api/search"));
+    await GET(new NextRequest("http://x/api/search"));
     expect(searchCoins).toHaveBeenCalledWith("");
   });
 });
 ```
+> 用 `NextRequest`（非純 `Request`）建構請求物件，因為 route 的 `GET` 簽名改用 `NextRequest` 以讀取 `request.nextUrl.searchParams`（依 Next.js 16 Route Handler 官方文件慣例，而非手動 `new URL(req.url)`）。
 
 - [ ] **Step 6: 跑測試確認失敗** — Run: `npm test -- "api/search"` → FAIL。
 
@@ -577,11 +579,11 @@ describe("GET /api/search", () => {
 
 `cryptosense/app/api/search/route.ts`：
 ```ts
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { searchCoins } from "@/lib/tools/search";
 
-export async function GET(req: Request) {
-  const q = new URL(req.url).searchParams.get("q") ?? "";
+export async function GET(request: NextRequest) {
+  const q = request.nextUrl.searchParams.get("q") ?? "";
   const result = await searchCoins(q);
   return NextResponse.json(result);
 }
@@ -615,7 +617,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 const push = vi.fn();
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+// Mock every export the App Router might reach for, not just useRouter — an
+// un-mocked next/navigation export throws "X is not a function" if anything
+// in the tree touches it, even indirectly.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push, replace: vi.fn(), back: vi.fn(), forward: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
+  usePathname: () => "/",
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 import { TopBar } from "./TopBar";
 
@@ -636,8 +645,8 @@ describe("TopBar", () => {
     }));
     render(<TopBar />);
     fireEvent.change(screen.getByPlaceholderText("搜尋幣種或代號..."), { target: { value: "eth" } });
-    const option = await screen.findByRole("button", { name: /Ethereum/ }, { timeout: 1000 });
-    fireEvent.mouseDown(option);
+    const option = await screen.findByRole("option", { name: /Ethereum/ }, { timeout: 1000 });
+    fireEvent.click(option);
     expect(push).toHaveBeenCalledWith("/coin/ethereum");
   });
 });
@@ -711,18 +720,32 @@ export function TopBar() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          onBlur={() => setOpen(false)}
           placeholder="搜尋幣種或代號..."
           aria-label="搜尋幣種或代號"
+          role="combobox"
+          aria-expanded={open}
+          aria-controls="topbar-search-listbox"
+          aria-autocomplete="list"
           className="w-full rounded-md border border-hairline px-3 py-1.5 text-[12px] text-ink placeholder:text-cb-muted"
         />
         {open && results.length > 0 && (
-          <ul className="absolute right-0 top-full z-10 mt-1 w-64 rounded-md border border-hairline bg-canvas py-1 shadow-lg">
+          <ul
+            id="topbar-search-listbox"
+            role="listbox"
+            // Prevent the input from ever blurring when a result is clicked —
+            // preventing mousedown's default action stops the browser's
+            // implicit focus shift, so there's no race against onBlur to win.
+            onMouseDown={(e) => e.preventDefault()}
+            className="absolute right-0 top-full z-10 mt-1 w-64 rounded-md border border-hairline bg-canvas py-1 shadow-lg"
+          >
             {results.map((c) => (
-              <li key={c.id}>
+              <li key={c.id} role="presentation">
                 <button
                   type="button"
-                  onMouseDown={() => go(c.id)}
+                  role="option"
+                  aria-selected="false"
+                  onClick={() => go(c.id)}
                   className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] text-ink hover:bg-soft"
                 >
                   <CoinIcon image={c.image} symbol={c.symbol} size={18} />
@@ -738,6 +761,7 @@ export function TopBar() {
   );
 }
 ```
+> `<ul>` 上的 `onMouseDown={(e) => e.preventDefault()}` 取代原本「`onMouseDown` 選項 + 150ms 延遲 `onBlur`」的計時器賽跑寫法——阻止 mousedown 的預設行為會讓 input 完全不會失焦，因此點擊可以直接用一般的 `onClick`，`onBlur` 也不需要延遲（依 WAI-ARIA combobox pattern 慣例；`role="combobox"`/`aria-expanded`/`aria-controls`/`role="listbox"`/`role="option"` 是同一份規範建議的最低限度 ARIA 標記，不含完整鍵盤導覽/`aria-activedescendant`，這部分留待未來如有無障礙需求再擴充）。
 
 - [ ] **Step 4: 接入 layout**
 
@@ -1343,3 +1367,4 @@ git commit -m "docs: update test count and note aggregator-style market overview
 - **Type consistency**：`MarketCoin`/`CoinData` 新欄位命名在 Task 1/2（型別定義）、Task 8/9（元件消費）、對應測試三處一致（`image`/`marketCapRank`/`change1h`/`change24h`/`change7d`/`rankChange`/`spark7d`）；`CoinIcon`/`PriceTrendChart` 的 props 簽名在建立（Task 4/7）與使用（Task 6/8/9）處一致。
 - **無 DB、無新增 AI 工具**：`searchCoins`/`/api/search` 明確標註「非 AI 工具」，`lib/ai/tools.ts`（`makeCryptoTools`）完全未被本計畫觸碰，AI 問答仍是剛好 3 支工具。
 - **已知取捨（沿用 design spec 的排除清單）**：不做分類篩選 tabs、不做 watchlist 星號、不做 1D/1M/1Y 圖表時間窗、不做 trending 跑馬燈——本計畫的任何 task 都沒有暗中把這些加回來。
+- **技術方案並行驗證（6 個獨立 Context7/WebSearch 研究 agent，2026-07-02）**：Next.js 16 Route Handler、Tailwind v4 tokens、Vitest/Testing Library、Recharts、CoinGecko API v3 schema、防抖搜尋 UX 六個領域逐一查證後，已將發現的 3 處修正套進對應 task（Task 5 route.ts 改用 `NextRequest`/`request.nextUrl.searchParams`；Task 6 TopBar 的下拉選單改用 `onMouseDown` preventDefault 取代計時器賽跑並補上最低限度 ARIA、`next/navigation` mock 補齊 `usePathname`/`useSearchParams`）。其餘經查證均與現行官方文件/社群主流做法一致，未做改動（Tailwind `@theme inline` 寫法、`ResponsiveContainer` 在 jsdom 下只斷言文字不斷言圖表內部、CoinGecko 三支 endpoint 的欄位假設）。
