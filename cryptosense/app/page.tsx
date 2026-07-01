@@ -7,10 +7,10 @@ export default async function Home() {
   const [overview, fearGreed] = await Promise.all([getMarketOverview(), getFearGreedIndex()]);
   return (
     <main className="mx-auto max-w-5xl p-6">
-      <h1 className="mb-4 text-xl font-bold text-white">CryptoSense · 市場總覽</h1>
+      <p className="mb-4 text-xs text-cb-muted">市場總覽 · 分析型摘要</p>
       {overview.data && fearGreed.data
         ? <MarketDashboard overview={overview.data} fearGreed={fearGreed.data} />
-        : <p className="text-slate-400">市場資料暫時取不到，請稍後再試。</p>}
+        : <p className="text-cb-muted">市場資料暫時取不到，請稍後再試。</p>}
     </main>
   );
 }
