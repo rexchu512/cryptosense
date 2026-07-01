@@ -4,14 +4,16 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* ── Coinbase design tokens ─────────────────────────────────────────────────
+/* ── v2 research-driven design tokens ───────────────────────────────────────
    命名衝突說明：shadcn 已佔用 --primary（暗黑按鈕色）與 --muted（灰色背景），
-   故 Coinbase 對應 tokens 加 --cb- 前綴，其餘不衝突的直接定義。
+   故 v2 對應 tokens 沿用既有 --cb- 前綴慣例（--cb-primary / --cb-primary-soft /
+   --cb-muted），其餘不衝突的直接定義。原 Coinbase 版 tokens（--cb-primary-active、
+   純黑 dark 面、純白 on-dark）已替換為 DESIGN-v2-research-driven.md 版本。
    ───────────────────────────────────────────────────────────────────────── */
 :root {
-  /* Coinbase brand */
+  /* Primary brand (scarce accent: wordmark + KB-citation only) */
   --cb-primary: #0052ff;
-  --cb-primary-active: #003ecc;
+  --cb-primary-soft: #e8eeff;
   /* Text hierarchy */
   --ink: #0a0b0d;
   --body: #5b616e;
@@ -23,14 +25,16 @@
   --canvas: #ffffff;
   --soft: #f7f7f7;
   --strong: #eef0f3;
-  /* Dark surfaces */
-  --dark: #0a0b0d;
-  --dark-el: #16181c;
-  --on-dark: #ffffff;
+  /* Dark surfaces (AI console) — NOT pure black/white, halation-safe */
+  --dark: #121316;
+  --dark-el: #1b1d22;
+  --dark-el-2: #24262c;
+  --on-dark: #f2f1ee;
   --on-dark-soft: #a8acb3;
-  /* Semantic price */
+  /* Semantic price/risk */
   --up: #05b169;
   --down: #cf202f;
+  --down-soft: #b3541f;
 }
 
 @theme inline {
@@ -39,9 +43,9 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
   --font-heading: var(--font-sans);
-  /* Coinbase Tailwind utilities */
+  /* v2 research-driven Tailwind utilities */
   --color-cb-primary: var(--cb-primary);
-  --color-cb-primary-active: var(--cb-primary-active);
+  --color-cb-primary-soft: var(--cb-primary-soft);
   --color-ink: var(--ink);
   --color-body: var(--body);
   --color-cb-muted: var(--cb-muted);
@@ -52,10 +56,12 @@
   --color-strong: var(--strong);
   --color-dark: var(--dark);
   --color-dark-el: var(--dark-el);
+  --color-dark-el-2: var(--dark-el-2);
   --color-on-dark: var(--on-dark);
   --color-on-dark-soft: var(--on-dark-soft);
   --color-up: var(--up);
   --color-down: var(--down);
+  --color-down-soft: var(--down-soft);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
