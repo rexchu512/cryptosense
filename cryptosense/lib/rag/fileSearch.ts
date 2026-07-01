@@ -25,6 +25,9 @@ export async function searchKnowledgeBase(
       include: ["file_search_call.results"],
     } as any);
     const call = (res.output ?? []).find((o: any) => o.type === "file_search_call");
+    if (call && call.status && call.status !== "completed") {
+      return fail("KnowledgeBase", `file_search_call status: ${call.status}`);
+    }
     const chunks: KbChunk[] = (call?.results ?? []).map((r: any) => ({
       text: r.text ?? (r.content ?? []).map((c: any) => c.text).join("\n"),
       source: r.filename ?? r.file_id ?? "knowledge-base",

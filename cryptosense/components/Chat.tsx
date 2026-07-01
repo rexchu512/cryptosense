@@ -12,6 +12,7 @@ import {
 } from "ai";
 import { Markdown } from "./Markdown";
 import { CitationPanel } from "./CitationPanel";
+import type { KbChunk } from "@/lib/rag/fileSearch";
 
 /** Tool name to Chinese badge label */
 const TOOL_LABEL: Record<string, string> = {
@@ -33,7 +34,7 @@ function kbChunks(parts: MsgPart[]) {
       x.state === "output-available",
   );
   const output = p && "output" in p ? (p as { output?: { data?: unknown } }).output : undefined;
-  return (output?.data ?? []) as { text: string; source: string }[];
+  return (output?.data ?? []) as KbChunk[];
 }
 
 function defaultChips(symbol: string) {

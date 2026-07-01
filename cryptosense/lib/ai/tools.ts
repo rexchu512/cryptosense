@@ -3,13 +3,17 @@ import { z } from "zod";
 import { getCoinData } from "@/lib/tools/coin";
 import { getCryptoNews } from "@/lib/tools/news";
 import { searchKnowledgeBase } from "@/lib/rag/fileSearch";
+import { fail } from "@/lib/tools/http";
 
 export function makeCryptoTools(ctx: { coinId?: string; symbol?: string }) {
   return {
     getCoinData: tool({
       description: "取得幣的即時行情（價格/24h漲跌/市值/量）。省略 id 時取當前幣；可帶其他 id（如 bitcoin）做對照。",
       inputSchema: z.object({ id: z.string().optional().describe("CoinGecko id；省略=當前幣") }),
-      execute: async ({ id }) => getCoinData(id ?? ctx.coinId ?? ""),
+      execute: async ({ id }) => {
+        const target = id ?? ctx.coinId;
+        return target ? getCoinData(target) : fail("CoinGecko", "no coin specified");
+      },
     }),
     getCryptoNews: tool({
       description: "取得近期加密新聞標題（總體 feed；情緒由你依標題判讀）。",
