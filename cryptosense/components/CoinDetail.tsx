@@ -23,7 +23,7 @@ export function CoinDetail({ coin, news, updatedAt, newsError }: { coin: CoinDat
           <div>
             <div className="text-[10px] uppercase tracking-wide text-cb-muted">{coin.name} · {coin.symbol}</div>
             <div className="font-mono text-3xl font-medium tabular-nums text-ink">
-              ${coin.price.toLocaleString()}{" "}
+              ${coin.price.toLocaleString("en-US")}{" "}
               <span data-testid="coin-change" className={`text-sm ${changeClass(coin.change24h)}`}>{pct(coin.change24h)} (24h)</span>
             </div>
           </div>

@@ -14,7 +14,7 @@ export default async function CoinPage({ params }: { params: Promise<{ id: strin
       {coin.data
         ? <>
             <p className="mb-4 text-xs text-cb-muted">市場 / {coin.data.name}</p>
-            <CoinDetail coin={coin.data} news={newsRes?.data ?? []} newsError={newsRes?.error} updatedAt={new Date(coin.timestamp).toLocaleString()} />
+            <CoinDetail coin={coin.data} news={newsRes?.data ?? []} newsError={newsRes?.error} updatedAt={new Date(coin.timestamp).toLocaleString("zh-TW")} />
             <div id="ai-chat" className="mt-6 scroll-mt-20">
               <Chat coinId={coin.data.id} symbol={coin.data.symbol} />
             </div>

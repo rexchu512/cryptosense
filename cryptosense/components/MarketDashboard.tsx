@@ -97,7 +97,7 @@ export function MarketDashboard({ overview, fearGreed }: { overview: MarketOverv
                     <span className="text-cb-muted">{c.symbol}</span>
                   </Link>
                 </td>
-                <td className="text-right font-mono tabular-nums">${c.price.toLocaleString()}</td>
+                <td className="text-right font-mono tabular-nums">${c.price.toLocaleString("en-US")}</td>
                 <td data-testid={`change1h-${c.id}`} className={`text-right font-mono tabular-nums ${changeClass(c.change1h)}`}>{pct(c.change1h)}</td>
                 <td data-testid={`change-${c.id}`} className={`text-right font-mono tabular-nums ${changeClass(c.change24h)}`}>{pct(c.change24h)}</td>
                 <td data-testid={`change7d-${c.id}`} className={`text-right font-mono tabular-nums ${changeClass(c.change7d)}`}>{pct(c.change7d)}</td>

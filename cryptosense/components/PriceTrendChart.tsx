@@ -21,7 +21,7 @@ export function PriceTrendChart({ symbol, data, change7d }: { symbol: string; da
           </LineChart>
         </ResponsiveContainer>
         <span className="absolute right-0 top-1/2 -translate-y-1/2 font-mono text-xs text-ink">
-          ${last.toLocaleString()}
+          ${last.toLocaleString("en-US")}
         </span>
       </div>
     </div>
