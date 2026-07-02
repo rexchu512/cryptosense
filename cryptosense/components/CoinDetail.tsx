@@ -31,7 +31,7 @@ export function CoinDetail({ coin, news, updatedAt, newsError }: { coin: CoinDat
         <div className="text-right text-xs text-cb-muted">資料更新<br />{updatedAt}</div>
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="rounded-xl border border-hairline p-3">
           <div className="text-[10px] uppercase text-cb-muted">市值排名</div>
           <div className="font-mono text-[15px] font-medium text-ink">{coin.marketCapRank ? `#${coin.marketCapRank}` : "—"}</div>

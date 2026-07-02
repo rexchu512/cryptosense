@@ -23,7 +23,7 @@ describe("CoinDetail", () => {
     expect(screen.getByText(/資料來源：CoinGecko/)).toBeInTheDocument();
     expect(screen.getByText(/來源：CoinTelegraph/)).toBeInTheDocument();
     expect(screen.queryByText(/利多|利空|中性/)).toBeNull();
-    expect(screen.getByTestId("coin-change").className).toMatch(/text-down/);
+    expect(screen.getByTestId("coin-change").className).toMatch(/text-down-soft/);
     const link = screen.getByRole("link", { name: /ETF approved/ });
     expect(link).toHaveAttribute("href", "http://a");
     expect(link).toHaveAttribute("target", "_blank");

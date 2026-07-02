@@ -17,7 +17,7 @@ describe("MarketDashboard", () => {
     expect(screen.getByText("52")).toBeInTheDocument();
     expect(screen.getByText("54.3%")).toBeInTheDocument();
     expect(screen.getByTestId("change-bitcoin").className).toMatch(/text-up/);
-    expect(screen.getByTestId("change-dogecoin").className).toMatch(/text-down/);
+    expect(screen.getByTestId("change-dogecoin").className).toMatch(/text-down-soft/);
   });
 
   it("shows 1H and 7D columns alongside 24H", () => {
