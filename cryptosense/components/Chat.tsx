@@ -11,8 +11,8 @@ import {
   type UITools,
 } from "ai";
 import { Markdown } from "./Markdown";
-import { CitationPanel } from "./CitationPanel";
-import type { KbChunk } from "@/lib/rag/fileSearch";
+import { SourceTray } from "./SourceTray";
+import type { CitedSource } from "@/lib/ai/sources";
 
 /** Tool name to Chinese badge label */
 const TOOL_LABEL: Record<string, string> = {
@@ -25,16 +25,22 @@ const DISCLAIMER = "本內容為 AI 整理之公開資訊，非投資建議，�
 
 type MsgPart = UIMessagePart<UIDataTypes, UITools>;
 
-/** Extract knowledge-base chunks from an assistant message's parts (searchKnowledgeBase tool output). */
-function kbChunks(parts: MsgPart[]) {
-  const p = parts.find(
-    (x) =>
-      isToolUIPart(x) &&
-      getToolName(x) === "searchKnowledgeBase" &&
-      x.state === "output-available",
-  );
-  const output = p && "output" in p ? (p as { output?: { data?: unknown } }).output : undefined;
-  return (output?.data ?? []) as KbChunk[];
+/** Collect the unified, numbered citation sources across ALL three tools'
+ *  outputs (market / news / knowledge-base). Each tool's output carries a
+ *  `sources: CitedSource[]` assigned by the per-turn registry; the model cites
+ *  them inline as `[n]`. Dedupe by n, sort ascending. */
+function allSources(parts: MsgPart[]): CitedSource[] {
+  const acc: CitedSource[] = [];
+  for (const p of parts) {
+    if (isToolUIPart(p) && p.state === "output-available") {
+      const out = (p as { output?: { sources?: CitedSource[] } }).output;
+      if (out?.sources) acc.push(...out.sources);
+    }
+  }
+  const seen = new Set<number>();
+  return acc
+    .filter((s) => (seen.has(s.n) ? false : (seen.add(s.n), true)))
+    .sort((a, b) => a.n - b.n);
 }
 
 function defaultChips(symbol: string) {
@@ -62,6 +68,22 @@ export function Chat({ coinId, symbol }: { coinId: string; symbol: string }) {
     if (!text.trim() || busy) return;
     sendMessage({ text });
     setInput("");
+  };
+
+  // Citation jump: `[n]` renders as <a href="#cs-n">. A bare anchor only
+  // scrolls the window, not this inner overflow-y-auto message list — so
+  // intercept the click and scrollIntoView the source row within its
+  // scroll parent.
+  const jumpToSource = (e: React.MouseEvent<HTMLDivElement>) => {
+    const anchor = (e.target as HTMLElement).closest('a[href^="#cs-"]');
+    if (!anchor) return;
+    e.preventDefault();
+    const id = anchor.getAttribute("href")?.slice(1);
+    const el = id ? document.getElementById(id) : null;
+    if (el) {
+      if (el instanceof HTMLDetailsElement) el.open = true;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
   };
 
   // Auto-scroll on new content
@@ -113,25 +135,30 @@ export function Chat({ coinId, symbol }: { coinId: string; symbol: string }) {
   }, [status, messages, coinId, symbol]);
 
   return (
-    <div className="rounded-lg border border-hairline bg-dark">
+    <div className="flex flex-col overflow-hidden rounded-2xl border border-hairline bg-card shadow-sm">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-dark-el px-3 py-2 text-xs text-on-dark-soft">
-        <span>AI 研究助手 · 情境：{symbol}</span>
+      <div className="flex items-center gap-2 border-b border-hairline-soft bg-gradient-to-b from-cb-primary-soft/50 to-transparent px-4 py-3">
+        <span className="h-2 w-2 rounded-full bg-brand ring-4 ring-glow/20" />
+        <span className="text-sm font-bold text-ink">AI 研究助手</span>
+        <span className="ml-auto rounded-full bg-cb-primary-soft px-2.5 py-0.5 text-[11px] font-medium text-brand-strong">
+          情境：{symbol}
+        </span>
       </div>
 
       {/* Messages */}
       <div
         ref={scrollRef}
-        className="max-h-96 space-y-3 overflow-y-auto p-3 text-sm"
+        onClick={jumpToSource}
+        className="max-h-[28rem] scroll-smooth space-y-4 overflow-y-auto p-4 lg:max-h-[calc(100vh-13rem)]"
         aria-live="polite"
       >
-        {/* Capability frame */}
-        <div className="rounded border border-dark-el bg-dark-el p-2 text-xs text-on-dark-soft">
-          我可以協助分析{" "}
-          <strong className="text-on-dark">
-            {symbol} 的風險面、近期新聞與個人知識整合
+        {/* Capability frame — states scope, not "ask me anything" */}
+        <div className="rounded-xl border border-hairline-soft bg-soft p-3 text-[13px] leading-relaxed text-body">
+          我可以就{" "}
+          <strong className="font-semibold text-ink">
+            {symbol} 的風險面、近期新聞與你的知識庫
           </strong>
-          ，包括潛在下行風險與市場情緒。我不會報明牌或保證獲利。
+          作答，包含潛在下行風險與市場情緒。不報明牌、不保證獲利，並附上出處。
         </div>
 
         {/* Rendered messages */}
@@ -139,21 +166,17 @@ export function Chat({ coinId, symbol }: { coinId: string; symbol: string }) {
           const parts = m.parts as MsgPart[];
           const text = textOf(parts);
           return (
-            <div key={m.id} className={m.role === "user" ? "text-right" : undefined}>
+            <div key={m.id} className={m.role === "user" ? "flex justify-end" : undefined}>
               {m.role === "user" ? (
-                <span className="inline-block rounded bg-cb-primary px-3 py-1.5 text-white">
+                <span className="inline-block max-w-[88%] rounded-2xl rounded-br-sm bg-cb-primary px-3 py-2 text-sm text-white">
                   {text}
                 </span>
               ) : (
-                <div className="rounded-md bg-dark-el p-3 text-on-dark">
+                <div className="border-t border-hairline-soft pt-3 first:border-t-0 first:pt-0">
                   {/* Telemetry Strip: completed retrieval steps, not an anthropomorphized "thinking..." narration */}
                   <TelemetryStrip parts={parts} />
-                  <Markdown>{text}</Markdown>
-                  <CitationPanel chunks={kbChunks(parts)} />
-                  {/* Disclaimer tied to this specific answer — not just a footer line */}
-                  <p className="mt-3 rounded border border-dark-el-2 bg-dark-el-2 px-2 py-1.5 text-xs font-medium text-on-dark-soft">
-                    {DISCLAIMER}
-                  </p>
+                  <Markdown>{linkifyCitations(text)}</Markdown>
+                  <SourceTray sources={allSources(parts)} />
                 </div>
               )}
             </div>
@@ -162,7 +185,7 @@ export function Chat({ coinId, symbol }: { coinId: string; symbol: string }) {
 
         {/* Streaming indicator */}
         {status === "submitted" && (
-          <div className="text-xs text-on-dark-soft">彙整中…</div>
+          <div className="text-xs text-cb-muted">彙整中…</div>
         )}
 
         {/* Error indicator */}
@@ -177,7 +200,7 @@ export function Chat({ coinId, symbol }: { coinId: string; symbol: string }) {
               key={c}
               disabled={busy}
               onClick={() => submit(c)}
-              className="rounded-full border border-dark-el-2 px-3 py-1 text-xs text-on-dark hover:bg-dark-el disabled:opacity-50"
+              className="rounded-full border border-hairline px-3 py-1 text-xs text-cb-primary transition-colors hover:border-glow hover:bg-soft disabled:opacity-50"
             >
               {c}
             </button>
@@ -185,13 +208,13 @@ export function Chat({ coinId, symbol }: { coinId: string; symbol: string }) {
         </div>
       </div>
 
-      {/* Persistent disclaimer near the input, where the user's eyes land before/after asking */}
-      <div className="border-t border-dark-el px-3 py-1.5 text-xs font-medium text-on-dark-soft">
+      {/* Single disclaimer, near the composer where the user's eyes land */}
+      <div className="border-t border-hairline-soft px-4 py-2 text-[11px] text-cb-muted">
         {DISCLAIMER}
       </div>
 
       {/* Input bar */}
-      <div className="flex gap-2 border-t border-dark-el p-2">
+      <div className="flex items-end gap-2 border-t border-hairline p-2.5">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -199,18 +222,25 @@ export function Chat({ coinId, symbol }: { coinId: string; symbol: string }) {
             if (e.key === "Enter" && !e.nativeEvent.isComposing) submit(input);
           }}
           placeholder={`繼續問關於 ${symbol} 的問題…`}
-          className="flex-1 rounded bg-dark px-3 py-2 text-on-dark placeholder:text-on-dark-soft"
+          className="flex-1 rounded-xl border border-hairline bg-canvas px-3 py-2 text-sm text-ink placeholder:text-cb-muted focus:border-glow focus:outline-none focus:ring-2 focus:ring-glow/20"
         />
         <button
           onClick={() => submit(input)}
           disabled={busy}
-          className="rounded bg-cb-primary px-4 font-semibold text-white disabled:opacity-50"
+          className="rounded-xl bg-cb-primary px-4 py-2 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
         >
           送出
         </button>
       </div>
     </div>
   );
+}
+
+/** Turn bare `[n]` citation markers into anchor links to the matching source
+ *  row (`#cs-n`), so users can jump straight to the source instead of hunting
+ *  for it. `\[n\]` keeps the brackets visible in the rendered link text. */
+export function linkifyCitations(text: string): string {
+  return text.replace(/\[(\d+)\]/g, "[\\[$1\\]](#cs-$1)");
 }
 
 function textOf(parts: MsgPart[]) {
@@ -242,10 +272,10 @@ function TelemetryStrip({ parts }: { parts: MsgPart[] }) {
             className={
               "rounded-full border px-2 py-0.5 " +
               (isKb
-                ? "border-cb-primary/70 text-on-dark"
+                ? "border-brand-strong/50 bg-cb-primary-soft text-brand-strong"
                 : done
-                  ? "border-dark-el-2 text-on-dark-soft"
-                  : "border-down-soft text-down-soft")
+                  ? "border-hairline text-cb-muted"
+                  : "border-brand-strong/40 text-brand-strong")
             }
           >
             {done ? "✓" : "…"} {TOOL_LABEL[name] ?? name}

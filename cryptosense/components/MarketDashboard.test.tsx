@@ -29,10 +29,12 @@ describe("MarketDashboard", () => {
 
   it("links coin rows to detail page and renders a coin logo", () => {
     render(<MarketDashboard overview={overview} fearGreed={fg} />);
-    const link = screen.getByRole("link", { name: /Bitcoin/ });
+    // Bitcoin also appears in the movers band and in the ≤640px card-list
+    // fallback, so scope the lookup to the desktop table's own row/link
+    // instead of querying the whole page.
+    const desktopTable = screen.getByTestId("mkt-desktop");
+    const link = within(desktopTable).getByRole("link", { name: /Bitcoin/ });
     expect(link).toHaveAttribute("href", "/coin/bitcoin");
-    // Bitcoin also appears in the movers band (it's a gainer), so scope the
-    // image lookup to this row's own link instead of querying the whole page.
     expect(within(link).getByRole("img")).toHaveAttribute("src", "https://x/btc.png");
   });
 
@@ -48,10 +50,13 @@ describe("MarketDashboard", () => {
 
   it("filters the ranking table by name or symbol as the user types", () => {
     render(<MarketDashboard overview={overview} fearGreed={fg} />);
-    expect(screen.getByText("Dogecoin")).toBeInTheDocument();
+    // The same coin name is rendered twice (desktop table + mobile card
+    // fallback), so scope to the desktop table to keep a single match.
+    const desktopTable = screen.getByTestId("mkt-desktop");
+    expect(within(desktopTable).getByText("Dogecoin")).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText("搜尋幣種..."), { target: { value: "btc" } });
-    expect(screen.queryByText("Dogecoin")).toBeNull();
-    expect(screen.getByText("Bitcoin")).toBeInTheDocument();
+    expect(within(desktopTable).queryByText("Dogecoin")).toBeNull();
+    expect(within(desktopTable).getByText("Bitcoin")).toBeInTheDocument();
   });
 
   it("renders RankChange with aria-labels for screen readers", () => {

@@ -2,12 +2,18 @@
 import { describe, it, expect, vi } from "vitest";
 
 vi.mock("@/lib/tools/coin", () => ({ getCoinData: vi.fn().mockResolvedValue({ data: { symbol: "ETH" }, source: "CoinGecko", timestamp: "t" }) }));
-vi.mock("@/lib/tools/news", () => ({ getCryptoNews: vi.fn().mockResolvedValue({ data: [], source: "CoinTelegraph", timestamp: "t" }) }));
+vi.mock("@/lib/tools/news", () => ({
+  getCryptoNews: async () => ({
+    data: [{ title: "ETF 淨流入", url: "https://ct/x", publishedAt: "2026-07-01" }],
+    source: "CoinTelegraph", timestamp: "2026-07-02T15:30:00Z",
+  }),
+}));
 const sk = vi.fn().mockResolvedValue({ data: [{ text: "x", source: "n.md" }], source: "KnowledgeBase", timestamp: "t" });
 vi.mock("@/lib/rag/fileSearch", () => ({ searchKnowledgeBase: (q: string) => sk(q) }));
 
 import { makeCryptoTools } from "./tools";
 import { getCoinData } from "@/lib/tools/coin";
+import { createSourceRegistry } from "./sources";
 
 describe("makeCryptoTools", () => {
   it("exposes exactly 3 tools", () => {
@@ -42,6 +48,18 @@ describe("makeCryptoTools", () => {
       data: [{ text: "x", source: "n.md" }],
       source: "KnowledgeBase",
       timestamp: "t",
+      sources: [],
     });
+  });
+});
+
+describe("makeCryptoTools + registry", () => {
+  it("news tool registers a numbered source and includes it in output", async () => {
+    const reg = createSourceRegistry();
+    const tools = makeCryptoTools({ coinId: "bitcoin", symbol: "BTC" }, reg);
+    const out: any = await (tools.getCryptoNews as any).execute({}, {});
+    expect(out.sources?.[0]?.n).toBe(1);
+    expect(out.sources?.[0]?.kind).toBe("news");
+    expect(reg.list()[0].url).toBe("https://ct/x");
   });
 });

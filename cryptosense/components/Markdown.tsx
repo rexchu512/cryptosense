@@ -1,23 +1,20 @@
 "use client";
-import { memo } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { Streamdown } from "streamdown";
 
-export const Markdown = memo(function Markdown({ children }: { children: string }) {
+// Streamdown = drop-in for react-markdown, purpose-built for AI streaming:
+// built-in remark-gfm/rehype, graceful incomplete-markdown parsing, and
+// internal incremental memoization. Styling comes from the scoped `.answer`
+// typography in globals.css (the old `prose prose-invert` was a no-op because
+// @tailwindcss/typography was never installed).
+//
+// linkSafety is disabled so citation anchors (`[n]` → `#cs-n`, produced by
+// Chat's linkifyCitations) render as real <a> anchors and jump to the source
+// row, instead of Streamdown's confirm-popover <button> which breaks in-page
+// anchor navigation.
+export function Markdown({ children }: { children: string }) {
   return (
-    <div className="prose prose-invert max-w-none">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          a: ({ href, children }) => (
-            <a href={href} target="_blank" rel="noopener noreferrer">
-              {children}
-            </a>
-          ),
-        }}
-      >
-        {children}
-      </ReactMarkdown>
-    </div>
+    <Streamdown className="answer" linkSafety={{ enabled: false }}>
+      {children}
+    </Streamdown>
   );
-});
+}
