@@ -1,2 +1,6 @@
 .env
 .superpowers/
+# Playwright/Chrome audit artifacts (screenshots, console logs, snapshots)
+.playwright-mcp/
+/home-desktop.png
+/v2-home.png

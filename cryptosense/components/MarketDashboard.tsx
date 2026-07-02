@@ -51,7 +51,7 @@ export function MarketDashboard({ overview, fearGreed }: { overview: MarketOverv
   return (
     <div className="space-y-3">
       <div className="flex gap-3">
-        <Tile label="恐懼貪婪" value={fearGreed.value} sub={`😐 ${fearGreed.label}`} subClass="text-down-soft" />
+        <Tile label="恐懼貪婪" value={fearGreed.value} sub={fearGreed.label} subClass="text-down-soft" />
         <Tile label="總市值" value={usdCompact(overview.totalMarketCap)} />
         <Tile label="24h 量" value={usdCompact(overview.totalVolume)} />
         <Tile label="BTC 主導" value={`${overview.btcDominance.toFixed(1)}%`} />

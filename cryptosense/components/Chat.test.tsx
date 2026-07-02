@@ -7,7 +7,7 @@ vi.mock("@ai-sdk/react", () => ({
   useChat: (...args: unknown[]) => mockUseChat(...args),
 }));
 
-import { Chat } from "./Chat";
+import { Chat, linkifyCitations } from "./Chat";
 
 type ChatStatus = "ready" | "submitted" | "streaming" | "error";
 
@@ -35,6 +35,18 @@ function defaultReturn() {
   };
 }
 
+describe("linkifyCitations", () => {
+  it("turns bare [n] markers into anchor links to #cs-n (brackets preserved)", () => {
+    expect(linkifyCitations("風險偏空[4]。")).toBe("風險偏空[\\[4\\]](#cs-4)。");
+  });
+  it("linkifies each marker in a stacked run independently", () => {
+    expect(linkifyCitations("[1][2]")).toBe("[\\[1\\]](#cs-1)[\\[2\\]](#cs-2)");
+  });
+  it("leaves real markdown links untouched", () => {
+    expect(linkifyCitations("[看這裡](https://x)")).toBe("[看這裡](https://x)");
+  });
+});
+
 describe("Chat", () => {
   beforeEach(() => {
     mockUseChat.mockReset();
@@ -54,7 +66,7 @@ describe("Chat", () => {
 
   it("frames capability + disclaimer, not 'ask me anything'", () => {
     render(<Chat coinId="ethereum" symbol="ETH" />);
-    expect(screen.getByText(/風險面、近期新聞與個人知識/)).toBeInTheDocument();
+    expect(screen.getByText(/風險面、近期新聞與你的知識庫/)).toBeInTheDocument();
     expect(screen.getByText(/非投資建議/)).toBeInTheDocument();
     expect(screen.queryByText(/問我任何事/)).toBeNull();
   });
@@ -65,7 +77,7 @@ describe("Chat", () => {
     expect(chipButtons.length).toBeGreaterThanOrEqual(3);
   });
 
-  it("renders a disclaimer near every assistant answer, not only in the footer", () => {
+  it("shows the disclaimer exactly once (near the composer, not repeated per message)", () => {
     mockUseChat.mockReturnValue(
       baseChatReturn({
         messages: [
@@ -83,9 +95,9 @@ describe("Chat", () => {
       }),
     );
     render(<Chat coinId="ethereum" symbol="ETH" />);
-    // At least 2 occurrences: header/persistent notice + one tied to the assistant answer.
+    // Single persistent disclaimer near the composer — not duplicated per answer.
     const notices = screen.getAllByText(/非投資建議/);
-    expect(notices.length).toBeGreaterThanOrEqual(2);
+    expect(notices.length).toBe(1);
   });
 
   it("renders assistant text via Markdown and a citation panel sourced from searchKnowledgeBase tool output", () => {
@@ -108,6 +120,9 @@ describe("Chat", () => {
                 input: { query: "ETH risk" },
                 output: {
                   data: [{ text: "節錄內容", source: "risk-notes.md" }],
+                  sources: [
+                    { n: 1, kind: "kb", title: "risk-notes.md", meta: "個人筆記 · 相似度 0.80" },
+                  ],
                 },
               },
               { type: "text", text: "**風險偏負面**，理由如下。" },

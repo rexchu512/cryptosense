@@ -54,7 +54,12 @@ export function CoinDetail({ coin, news, updatedAt, newsError }: { coin: CoinDat
       <PriceTrendChart symbol={coin.symbol} data={coin.spark7d} change7d={coin.change7d} />
 
       <section className="rounded-2xl border border-hairline p-4">
-        <h2 className="mb-2 font-semibold text-ink">📰 近期新聞</h2>
+        <h2 className="mb-2 flex items-center gap-2 font-semibold text-ink">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-brand-strong">
+            <path d="M4 4h13v16H6a2 2 0 0 1-2-2V4Z" /><path d="M17 8h2a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2" /><path d="M8 8h5M8 12h5M8 16h3" />
+          </svg>
+          近期新聞
+        </h2>
         {newsError
           ? <p className="text-cb-muted">新聞暫時無法載入，請稍後再試。</p>
           : news.length ? news.map((n, i) => {
@@ -73,7 +78,10 @@ export function CoinDetail({ coin, news, updatedAt, newsError }: { coin: CoinDat
         href="#ai-chat"
         className="flex items-center justify-center gap-2 rounded-2xl border border-hairline bg-soft py-3 text-sm font-medium text-ink hover:bg-strong"
       >
-        💬 針對 {coin.symbol} 問 AI：「我現在該進場嗎？」
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-brand-strong">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z" />
+        </svg>
+        針對 {coin.symbol} 問 AI：「我現在該進場嗎？」
       </a>
     </div>
   );

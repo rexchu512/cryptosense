@@ -2,7 +2,7 @@
 import { describe, it, expect } from "vitest";
 import { MockLanguageModelV4, simulateReadableStream } from "ai/test";
 import type { LanguageModelV4StreamPart } from "@ai-sdk/provider";
-import { runChat } from "./chat";
+import { runChat, buildTurnSystem } from "./chat";
 
 describe("runChat", () => {
   it("streams text from injected model", async () => {
@@ -36,5 +36,13 @@ describe("runChat", () => {
     let text = "";
     for await (const part of result.textStream) text += part;
     expect(text).toContain("中高風險");
+  });
+});
+
+describe("buildTurnSystem markdown re-append", () => {
+  it("appends a markdown reminder every 3rd user turn", () => {
+    const three = Array.from({ length: 3 }, () => ({ role: "user", parts: [] }));
+    const s = buildTurnSystem(three as any, { symbol: "BTC" });
+    expect(s).toMatch(/提醒[\s\S]*Markdown/);
   });
 });
