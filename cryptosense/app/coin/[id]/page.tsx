@@ -10,16 +10,22 @@ export default async function CoinPage({ params }: { params: Promise<{ id: strin
   const coin = await getCoinData(id);
   const newsRes = coin.data ? await getCryptoNews(coin.data.symbol) : null;
   return (
-    <main className="mx-auto max-w-3xl p-6">
+    <main className="cs-wrap py-8 lg:py-12">
       {coin.data
-        ? <>
-            <p className="mb-4 text-xs text-cb-muted">市場 / {coin.data.name}</p>
-            <CoinDetail coin={coin.data} news={newsRes?.data ?? []} newsError={newsRes?.error} updatedAt={new Date(coin.timestamp).toLocaleString("zh-TW")} />
-            <div id="ai-chat" className="mt-6 scroll-mt-20">
+        ? (
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-8">
+            <CoinDetail
+              coin={coin.data}
+              news={newsRes?.data ?? []}
+              newsError={newsRes?.error}
+              updatedAt={new Date(coin.timestamp).toLocaleString("zh-TW")}
+            />
+            <div id="ai-chat" className="scroll-mt-20 lg:sticky lg:top-20">
               <Chat coinId={coin.data.id} symbol={coin.data.symbol} />
             </div>
-          </>
-        : <p className="text-cb-muted">找不到此幣資料。</p>}
+          </div>
+        )
+        : <p className="py-16 text-center text-cb-muted">找不到此幣資料。</p>}
     </main>
   );
 }

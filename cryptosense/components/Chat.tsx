@@ -70,6 +70,22 @@ export function Chat({ coinId, symbol }: { coinId: string; symbol: string }) {
     setInput("");
   };
 
+  // Citation jump: `[n]` renders as <a href="#cs-n">. A bare anchor only
+  // scrolls the window, not this inner overflow-y-auto message list — so
+  // intercept the click and scrollIntoView the source row within its
+  // scroll parent.
+  const jumpToSource = (e: React.MouseEvent<HTMLDivElement>) => {
+    const anchor = (e.target as HTMLElement).closest('a[href^="#cs-"]');
+    if (!anchor) return;
+    e.preventDefault();
+    const id = anchor.getAttribute("href")?.slice(1);
+    const el = id ? document.getElementById(id) : null;
+    if (el) {
+      if (el instanceof HTMLDetailsElement) el.open = true;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
   // Auto-scroll on new content
   useEffect(() => {
     const el = scrollRef.current;
@@ -132,7 +148,8 @@ export function Chat({ coinId, symbol }: { coinId: string; symbol: string }) {
       {/* Messages */}
       <div
         ref={scrollRef}
-        className="max-h-[28rem] scroll-smooth space-y-4 overflow-y-auto p-4"
+        onClick={jumpToSource}
+        className="max-h-[28rem] scroll-smooth space-y-4 overflow-y-auto p-4 lg:max-h-[calc(100vh-13rem)]"
         aria-live="polite"
       >
         {/* Capability frame — states scope, not "ask me anything" */}

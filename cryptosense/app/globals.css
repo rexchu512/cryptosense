@@ -22,26 +22,26 @@
   --glow: #48b7bd;
   /* Noto Sans TC 走 <link>（見 layout.tsx）；此處定義 CJK 字族供 var(--font-tc) 使用 */
   --font-tc: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
-  /* Text hierarchy */
-  --ink: #0a0b0d;
-  --body: #5b616e;
+  /* Text hierarchy (warm design-system values) */
+  --ink: #171c24;
+  --body: #525864;
   --cb-muted: #7c828a;
-  /* Borders */
-  --hairline: #dee1e6;
-  --hairline-soft: #eef0f3;
-  /* Surfaces */
-  --canvas: #ffffff;
-  --soft: #f7f7f7;
-  --strong: #eef0f3;
+  /* Borders (warm) */
+  --hairline: #e5e3de;
+  --hairline-soft: #eeede8;
+  /* Surfaces (warm white) */
+  --canvas: #fdfcf9;
+  --soft: #f6f5f1;
+  --strong: #edece7;
   /* Dark surfaces (AI console) — NOT pure black/white, halation-safe */
   --dark: #121316;
   --dark-el: #1b1d22;
   --dark-el-2: #24262c;
   --on-dark: #f2f1ee;
   --on-dark-soft: #a8acb3;
-  /* Semantic price/risk */
-  --up: #05b169;
-  --down: #cf202f;
+  /* Semantic price/risk (restrained, halation-safe on warm white) */
+  --up: #0e8a5f;
+  --down: #c24840;
   --down-soft: #b3541f;
 }
 
@@ -201,7 +201,7 @@
 }
 
 @layer components {
-  .answer{font-family:var(--font-sans),var(--font-tc),sans-serif;font-size:17px;line-height:1.85;color:#26282d;max-width:68ch;letter-spacing:.003em;text-wrap:pretty}
+  .answer{font-family:var(--font-sans),var(--font-tc),sans-serif;font-size:15px;line-height:1.85;color:#26282d;max-width:68ch;letter-spacing:.003em;text-wrap:pretty}
   .answer>:first-child{margin-top:0}
   .answer>:last-child{margin-bottom:0}
   .answer :where(p){margin:0 0 1.15em}
@@ -226,4 +226,27 @@
   .answer :where(tbody tr:nth-child(even)){background:var(--soft)}
   .answer :where(hr){border:0;border-top:1px solid var(--hairline);margin:2em 0}
   .answer :where(strong){font-weight:650;color:var(--ink)}
+}
+
+/* ── Plan 2 page-level design (warm-white pages) ───────────────────────── */
+@layer components {
+  .cs-wrap { max-width: 1440px; margin-inline: auto; padding-inline: clamp(20px, 4vw, 52px); }
+  .cs-eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--brand-strong); }
+  .cs-head { font-family: var(--font-heading), var(--font-tc), sans-serif; font-weight: 700; letter-spacing: -.01em; }
+}
+
+/* ambient brand glow behind the whole app (design body::before) */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -2; pointer-events: none;
+  background:
+    radial-gradient(55% 45% at 8% -6%, rgba(72,183,189,.10), transparent 70%),
+    radial-gradient(48% 40% at 96% 2%, rgba(21,49,102,.06), transparent 70%);
+}
+
+/* reveal-on-mount rise (respects reduced-motion) */
+@media (prefers-reduced-motion: no-preference) {
+  .rv { opacity: 0; transform: translateY(14px); animation: rv-rise .6s cubic-bezier(.2,0,0,1) forwards; }
+  .rv-2 { animation-delay: .06s; }
+  .rv-3 { animation-delay: .12s; }
+  @keyframes rv-rise { to { opacity: 1; transform: none; } }
 }

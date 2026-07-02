@@ -12,7 +12,8 @@ const news = [{ title: "ETF approved", url: "http://a", publishedAt: "2026-06-18
 describe("CoinDetail", () => {
   it("renders header, real logo, stat grid, trend chart, sources, news, AI prompt", () => {
     render(<CoinDetail coin={coin} news={news} updatedAt="2026-06-19 14:32" />);
-    expect(screen.getByText(/Ethereum/)).toBeInTheDocument();
+    // 幣名同時出現在麵包屑與價格 hero，兩欄工作台佈局下允許多處命中
+    expect(screen.getAllByText(/Ethereum/).length).toBeGreaterThan(0);
     expect(screen.getByRole("img", { name: "ETH" })).toHaveAttribute("src", "https://x/eth.png");
     // 4 格統計
     expect(screen.getByText("#2")).toBeInTheDocument();
