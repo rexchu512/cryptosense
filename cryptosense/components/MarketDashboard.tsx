@@ -9,9 +9,9 @@ import { CoinIcon } from "./CoinIcon";
 type Coin = MarketOverview["coins"][number];
 
 function RankChange({ rankChange }: { rankChange: Coin["rankChange"] }) {
-  if (rankChange === "up") return <span className="text-up">▲</span>;
-  if (rankChange === "down") return <span className="text-down-soft">▼</span>;
-  return <span className="text-cb-muted">–</span>;
+  if (rankChange === "up") return <span role="img" aria-label="排名上升" className="text-up">▲</span>;
+  if (rankChange === "down") return <span role="img" aria-label="排名下降" className="text-down-soft">▼</span>;
+  return <span role="img" aria-label="排名不變" className="text-cb-muted">–</span>;
 }
 
 function MoverRow({ c }: { c: Coin }) {
