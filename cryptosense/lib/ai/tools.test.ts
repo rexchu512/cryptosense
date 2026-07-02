@@ -21,7 +21,27 @@ describe("makeCryptoTools", () => {
   });
   it("searchKnowledgeBase prefixes the current symbol", async () => {
     const tools = makeCryptoTools({ coinId: "ethereum", symbol: "ETH" });
-    await (tools.searchKnowledgeBase as any).execute({ query: "解鎖風險" });
+    const gen = (tools.searchKnowledgeBase as any).execute({ query: "解鎖風險" });
+    await gen.next();
+    await gen.next();
     expect(sk).toHaveBeenCalledWith(expect.stringContaining("ETH"));
+  });
+  it("searchKnowledgeBase yields a searching status before the slow lookup resolves", async () => {
+    let resolveLookup!: (v: unknown) => void;
+    sk.mockReturnValue(new Promise((resolve) => { resolveLookup = resolve; }));
+    const tools = makeCryptoTools({ coinId: "ethereum", symbol: "ETH" });
+    const gen = (tools.searchKnowledgeBase as any).execute({ query: "解鎖風險" });
+
+    const first = await gen.next();
+    expect(first).toEqual({ value: { status: "searching" }, done: false });
+
+    resolveLookup({ data: [{ text: "x", source: "n.md" }], source: "KnowledgeBase", timestamp: "t" });
+    const second = await gen.next();
+    expect(second.value).toEqual({
+      status: "done",
+      data: [{ text: "x", source: "n.md" }],
+      source: "KnowledgeBase",
+      timestamp: "t",
+    });
   });
 });

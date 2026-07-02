@@ -23,7 +23,11 @@ export function makeCryptoTools(ctx: { coinId?: string; symbol?: string }) {
     searchKnowledgeBase: tool({
       description: "檢索使用者個人知識庫（自有筆記），回傳帶來源的片段；檢索以當前幣為標的。",
       inputSchema: z.object({ query: z.string() }),
-      execute: async ({ query }) => searchKnowledgeBase(`${ctx.symbol ?? ""} ${query}`.trim()),
+      execute: async function* ({ query }) {
+        yield { status: "searching" as const };
+        const result = await searchKnowledgeBase(`${ctx.symbol ?? ""} ${query}`.trim());
+        yield { status: "done" as const, ...result };
+      },
     }),
   };
 }
