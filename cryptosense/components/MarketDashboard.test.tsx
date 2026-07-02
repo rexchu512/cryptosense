@@ -7,6 +7,7 @@ const overview = {
   coins: [
     { id: "bitcoin", symbol: "BTC", name: "Bitcoin", image: "https://x/btc.png", marketCapRank: 1, price: 67200, change1h: 0.1, change24h: 1.2, change7d: 3.0, marketCap: 1.3e12, spark7d: [1, 2, 3], rankChange: "same" as const },
     { id: "dogecoin", symbol: "DOGE", name: "Dogecoin", image: "https://x/doge.png", marketCapRank: 9, price: 0.12, change1h: -0.4, change24h: -5.2, change7d: -1.0, marketCap: 1e10, spark7d: [3, 2, 1], rankChange: "down" as const },
+    { id: "ethereum", symbol: "ETH", name: "Ethereum", image: "https://x/eth.png", marketCapRank: 2, price: 3400, change1h: 0.2, change24h: 2.5, change7d: 5.0, marketCap: 4.1e11, spark7d: [1, 2, 3, 4], rankChange: "up" as const },
   ],
 };
 const fg = { value: 52, label: "Neutral" };
@@ -56,5 +57,12 @@ describe("MarketDashboard", () => {
     fireEvent.change(screen.getByPlaceholderText("搜尋幣種..."), { target: { value: "btc" } });
     expect(within(desktopTable).queryByText("Dogecoin")).toBeNull();
     expect(within(desktopTable).getByText("Bitcoin")).toBeInTheDocument();
+  });
+
+  it("renders RankChange with aria-labels for screen readers", () => {
+    render(<MarketDashboard overview={overview} fearGreed={fg} />);
+    expect(screen.getByRole("img", { name: "排名上升" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "排名下降" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "排名不變" })).toBeInTheDocument();
   });
 });
