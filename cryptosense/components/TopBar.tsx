@@ -12,6 +12,7 @@ export function TopBar() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<CoinSearchResult[]>([]);
   const [open, setOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -39,10 +40,31 @@ export function TopBar() {
     };
   }, [query]);
 
+  useEffect(() => {
+    setHighlightedIndex(-1);
+  }, [results]);
+
   const go = (id: string) => {
     setOpen(false);
     setQuery("");
     router.push(`/coin/${id}`);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!open || results.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightedIndex((i) => Math.min(i + 1, results.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightedIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      if (highlightedIndex >= 0 && highlightedIndex < results.length) {
+        go(results[highlightedIndex].id);
+      }
+    } else if (e.key === "Escape") {
+      setOpen(false);
+    }
   };
 
   return (
@@ -52,8 +74,6 @@ export function TopBar() {
       </Link>
       <nav className="hidden gap-5 text-[13px] text-body sm:flex">
         <Link href="/">市場</Link>
-        <Link href="/">幣種</Link>
-        <Link href="/">知識庫</Link>
       </nav>
       <div className="relative w-56">
         <input
@@ -61,12 +81,18 @@ export function TopBar() {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
           onBlur={() => setOpen(false)}
+          onKeyDown={handleKeyDown}
           placeholder="搜尋幣種或代號..."
           aria-label="搜尋幣種或代號"
           role="combobox"
           aria-expanded={open}
           aria-controls="topbar-search-listbox"
           aria-autocomplete="list"
+          aria-activedescendant={
+            highlightedIndex >= 0 && highlightedIndex < results.length
+              ? `topbar-option-${results[highlightedIndex].id}`
+              : undefined
+          }
           className="w-full rounded-md border border-hairline px-3 py-1.5 text-[12px] text-ink placeholder:text-cb-muted"
         />
         {open && results.length > 0 && (
@@ -79,14 +105,17 @@ export function TopBar() {
             onMouseDown={(e) => e.preventDefault()}
             className="absolute right-0 top-full z-10 mt-1 w-64 rounded-md border border-hairline bg-canvas py-1 shadow-lg"
           >
-            {results.map((c) => (
+            {results.map((c, i) => (
               <li key={c.id} role="presentation">
                 <button
                   type="button"
+                  id={`topbar-option-${c.id}`}
                   role="option"
-                  aria-selected="false"
+                  aria-selected={i === highlightedIndex}
                   onClick={() => go(c.id)}
-                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] text-ink hover:bg-soft"
+                  className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] text-ink hover:bg-soft ${
+                    i === highlightedIndex ? "bg-soft" : ""
+                  }`}
                 >
                   <CoinIcon image={c.image} symbol={c.symbol} size={18} />
                   <span>{c.name}</span>
