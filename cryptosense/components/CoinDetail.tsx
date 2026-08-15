@@ -3,7 +3,7 @@ import type { CoinData } from "@/lib/tools/coin";
 import type { NewsItem } from "@/lib/tools/news";
 import { pct, changeClass, usdCompact, numCompact } from "@/lib/format";
 import { CoinIcon } from "./CoinIcon";
-import { PriceTrendChart } from "./PriceTrendChart";
+import { PriceChartPanel } from "./PriceChartPanel";
 
 function safeLocalDate(pubDate: string): string {
   try {
@@ -65,7 +65,12 @@ export function CoinDetail({ coin, news, updatedAt, newsError }: { coin: CoinDat
         資料來源：CoinGecko · {updatedAt} · Powered by CoinGecko API
       </div>
 
-      <PriceTrendChart symbol={coin.symbol} data={coin.spark7d} change7d={coin.change7d} />
+      <PriceChartPanel
+        coinId={coin.id}
+        symbol={coin.symbol}
+        spotPrice={coin.price}
+        isStablecoin={coin.isStablecoin}
+      />
 
       {/* News */}
       <section className="rounded-2xl border border-hairline bg-canvas p-5 shadow-sm transition-shadow hover:shadow-md">
