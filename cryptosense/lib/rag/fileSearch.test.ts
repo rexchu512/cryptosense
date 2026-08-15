@@ -20,6 +20,17 @@ describe("searchKnowledgeBase (vectorStores.search)", () => {
     expect(res.data?.every((c) => (c.score ?? 0) >= 0.35)).toBe(true);
   });
 
+  it("asks for 10 results and lets the API rewrite the query", async () => {
+    process.env.OPENAI_VECTOR_STORE_ID = "vs_test";
+    const client = fakeClient([]);
+    await searchKnowledgeBase("q", client);
+    const [storeId, body] = (client.vectorStores.search as any).mock.calls[0];
+    expect(storeId).toBe("vs_test");
+    // 3 was far too few against a corpus this noisy; 10 is the API default.
+    expect(body.max_num_results).toBe(10);
+    expect(body.rewrite_query).toBe(true);
+  });
+
   it("returns fail when vector store id missing", async () => {
     delete process.env.OPENAI_VECTOR_STORE_ID;
     const r = await searchKnowledgeBase("x", fakeClient([]));
