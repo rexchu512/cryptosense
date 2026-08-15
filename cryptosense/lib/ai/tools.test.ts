@@ -38,12 +38,17 @@ describe("makeCryptoTools", () => {
     expect(out.data.spark7d).toBeUndefined();
   });
 
-  it("searchKnowledgeBase prefixes the current symbol", async () => {
+  it("searchKnowledgeBase leads with the question and trails the coin identifiers", async () => {
     const tools = makeCryptoTools({ coinId: "ethereum", symbol: "ETH" });
     const gen = (tools.searchKnowledgeBase as any).execute({ query: "解鎖風險" });
     await gen.next();
     await gen.next();
-    expect(sk).toHaveBeenCalledWith(expect.stringContaining("ETH"));
+    // Order is the point, not mere presence. Prefixing the ticker pulls the
+    // embedding toward the small slice of the corpus that names a coin at all,
+    // so the question has to come first and the identifiers trail as lexical
+    // anchors. `stringContaining("ETH")` passed for both shapes, which is why
+    // an earlier revert to the prefixed form went unnoticed.
+    expect(sk).toHaveBeenCalledWith("解鎖風險 ETH ethereum");
   });
   it("searchKnowledgeBase yields a searching status before the slow lookup resolves", async () => {
     let resolveLookup!: (v: unknown) => void;

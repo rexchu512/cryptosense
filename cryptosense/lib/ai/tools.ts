@@ -59,7 +59,12 @@ export function makeCryptoTools(
       inputSchema: z.object({ query: z.string() }),
       execute: async function* ({ query }) {
         yield { status: "searching" as const };
-        const result = await searchKnowledgeBase(`${ctx.symbol ?? ""} ${query}`.trim());
+        // Lead with the question so it drives the embedding, then trail the
+        // ticker and CoinGecko slug as lexical anchors for the hybrid search.
+        // Prefixing the ticker (the old shape) pulled the vector toward the
+        // small slice of the corpus that names a coin at all.
+        const anchored = [query, ctx.symbol, ctx.coinId].filter(Boolean).join(" ").trim();
+        const result = await searchKnowledgeBase(anchored);
         const sources = (result.data ?? []).map((c) =>
           reg
             ? reg.add({
