@@ -23,11 +23,11 @@ export function makeCryptoTools(
         const r = await getCoinData(target);
         if (!r.data) return r;
         // spark7d is 168 long floats the model cannot reason over, and tool
-        // results stay in the conversation for every later turn. The Dashboard's
-        // sparkline still reads spark7d straight from getCoinData, so strip it
-        // only on the way to the model. (The coin detail page's chart no longer
-        // reads spark7d at all — it fetches its own candles/closes via
-        // /api/price-series.)
+        // results stay in the conversation for every later turn, so strip it on
+        // the way to the model only — /api/coin/[id] still returns it wholesale.
+        // No renderer reads it today: the Dashboard's sparkline comes from
+        // lib/tools/market.ts, and the coin detail chart fetches its own
+        // candles/closes via /api/price-series.
         const { spark7d: _spark7d, ...data } = r.data;
         if (reg) {
           const s = reg.add({
