@@ -1,7 +1,12 @@
 // @vitest-environment node
 import { describe, it, expect, vi } from "vitest";
 
-vi.mock("@/lib/tools/coin", () => ({ getCoinData: vi.fn().mockResolvedValue({ data: { symbol: "ETH" }, source: "CoinGecko", timestamp: "t" }) }));
+vi.mock("@/lib/tools/coin", () => ({
+  getCoinData: vi.fn().mockResolvedValue({
+    data: { id: "ethereum", name: "Ethereum", symbol: "ETH", spark7d: [3600, 3580, 3550] },
+    source: "CoinGecko", timestamp: "t",
+  }),
+}));
 vi.mock("@/lib/tools/news", () => ({
   getCryptoNews: async () => ({
     data: [{ title: "ETF 淨流入", url: "https://ct/x", publishedAt: "2026-07-01" }],
@@ -25,6 +30,14 @@ describe("makeCryptoTools", () => {
     await (tools.getCoinData as any).execute({});
     expect(getCoinData).toHaveBeenCalledWith("ethereum");
   });
+  it("getCoinData output drops the 7-day sparkline before the model sees it", async () => {
+    const tools = makeCryptoTools({ coinId: "ethereum", symbol: "ETH" });
+    const out: any = await (tools.getCoinData as any).execute({});
+    expect(out.data.symbol).toBe("ETH");
+    // 168 floats the model cannot reason over, and they persist in history.
+    expect(out.data.spark7d).toBeUndefined();
+  });
+
   it("searchKnowledgeBase prefixes the current symbol", async () => {
     const tools = makeCryptoTools({ coinId: "ethereum", symbol: "ETH" });
     const gen = (tools.searchKnowledgeBase as any).execute({ query: "解鎖風險" });

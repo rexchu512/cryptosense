@@ -17,6 +17,9 @@ export type PriceSeries = {
   pair?: string;
   points: SeriesPoint[];
   signals: Signals[];
+  /** 設定時代表這是因為 Binance 上游故障（不是這個幣真的沒有交易對）才退回折線圖。
+   *  價格撞名防呆觸發的退回不算——那種情況是刻意不區分的，見設計文件 4.2 節。 */
+  degraded?: "binance-unavailable";
 };
 
 export type SeriesInput = {
@@ -43,9 +46,22 @@ export async function getPriceSeries(input: SeriesInput): Promise<ToolResult<Pri
     return { ...fail<PriceSeries>("PriceSeries", "stablecoin"), code: "unlisted" };
   }
 
+  // 追蹤是不是 Binance 上游故障（451/429/5xx）害我們退到第二層，而不是這個幣
+  // 真的沒有交易對。兩者混在一起，功能壞掉會偽裝成「這個幣本來就沒有」，
+  // 沒有人會發現——見設計文件第 8 節。
+  let binanceUnavailable = false;
+
   const pairs = await getUsdtPairs();
+  if (pairs.code === "unavailable") {
+    binanceUnavailable = true;
+    console.warn(`[chart] ${coinId} Binance 交易對清單暫時無法取得，改用折線`);
+  }
   if (pairs.data?.has(symbol.toUpperCase())) {
     const k = await getOHLCV(symbol);
+    if (k.code === "unavailable") {
+      binanceUnavailable = true;
+      console.warn(`[chart] ${coinId} Binance 日 K 暫時無法取得，改用折線`);
+    }
     const candles: Candle[] = k.data?.candles ?? [];
     if (candles.length) {
       const last = candles.at(-1)!.close;
@@ -59,7 +75,11 @@ export async function getPriceSeries(input: SeriesInput): Promise<ToolResult<Pri
         const w = window(points, calcTechnicalSignals(candles));
         return ok({ kind: "candles" as const, source: "Binance" as const, pair: k.data!.pair, ...w }, "Binance");
       }
-      console.warn(`[chart] ${coinId} 配對 ${k.data?.pair} 價格不符（Binance ${last} vs 現價 ${spotPrice}），改用折線`);
+      // spotPrice 缺失時（路由把缺值映成 0）drift 沒有意義，不算真的撞名，
+      // 不要記一筆假的碰撞——這是驗價紀錄唯一的資料來源，紀錄要乾淨。
+      if (spotPrice > 0) {
+        console.warn(`[chart] ${coinId} 配對 ${k.data?.pair} 價格不符（Binance ${last} vs 現價 ${spotPrice}），改用折線`);
+      }
     }
   }
 
@@ -73,5 +93,7 @@ export async function getPriceSeries(input: SeriesInput): Promise<ToolResult<Pri
   }));
   const points: SeriesPoint[] = cg.data.map((p) => ({ time: p.time, close: p.close }));
   const w = window(points, calcTechnicalSignals(asCandles));
-  return ok({ kind: "line" as const, source: "CoinGecko" as const, ...w }, "CoinGecko");
+  const line: PriceSeries = { kind: "line", source: "CoinGecko", ...w };
+  if (binanceUnavailable) line.degraded = "binance-unavailable";
+  return ok(line, "CoinGecko");
 }

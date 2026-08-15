@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
 vi.mock("next/dynamic", () => ({ default: () => () => <div data-testid="price-chart-canvas" /> }));
 
@@ -35,6 +35,20 @@ describe("PriceChartPanel", () => {
     // 折線圖可能是因為沒有交易對，也可能是有交易對但價格對不上（撞名）被拒。
     // 文案不該斷言原因，只該說明「沒有日 K，改用收盤價」這個兩種情況都成立的事實。
     expect(await screen.findByText(/無可用日 K 資料/)).toBeInTheDocument();
+  });
+
+  it("says Binance's daily-candle source is temporarily unavailable, not that the coin lacks data, when degraded", async () => {
+    stubJson({
+      data: { kind: "line", source: "CoinGecko", points: [{ time: 1, close: 100 }], signals, degraded: "binance-unavailable" },
+    });
+
+    render(<PriceChartPanel {...props} symbol="XMR" />);
+
+    // 這是 Binance 掛掉導致的折線退化，不能講成「這個幣本來就沒有 K 線資料」——
+    // 那句話對真正沒有交易對的幣才成立，混在一起就是設計文件第 8 節點名的
+    // 最危險失敗模式：功能壞掉卻看起來像正常運作。
+    expect(await screen.findByText(/Binance.*暫時無法取得/)).toBeInTheDocument();
+    expect(screen.queryByText(/無可用日 K 資料/)).not.toBeInTheDocument();
   });
 
   it("explains that stablecoins are out of scope rather than showing an error", async () => {

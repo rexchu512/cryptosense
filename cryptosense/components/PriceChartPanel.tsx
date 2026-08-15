@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import type { PriceSeries } from "@/lib/tools/priceSeries";
 
@@ -32,6 +32,10 @@ function Readout({ label, value }: { label: string; value: string }) {
       <div className="font-mono text-[13px] text-ink">{value}</div>
     </div>
   );
+}
+
+function maPoints(series: PriceSeries | undefined, key: "ma50" | "ma200") {
+  return series?.signals.flatMap((s) => (s[key] === undefined ? [] : [{ time: s.time, value: s[key]! }])) ?? [];
 }
 
 export function PriceChartPanel({ coinId, symbol, spotPrice, isStablecoin }: Props) {
@@ -67,6 +71,14 @@ export function PriceChartPanel({ coinId, symbol, spotPrice, isStablecoin }: Pro
     return () => { alive = false; };
   }, [coinId, symbol, spotPrice, isStablecoin]);
 
+  // Hooks 必須在任何提早 return 之前無條件呼叫，所以先在這裡算好，讀資料還沒
+  // 就緒時 readySeries 是 undefined，maPoints 回傳空陣列。keyed 在 readySeries
+  // 上：陣列參照只在真的換了一批新資料時才變，PriceChartCanvas 的 effect 依賴
+  // 才不會每次父層重繪都被誤判成「資料變了」而重建圖表、清掉使用者的縮放。
+  const readySeries = st.s === "ready" ? st.series : undefined;
+  const ma50 = useMemo(() => maPoints(readySeries, "ma50"), [readySeries]);
+  const ma200 = useMemo(() => maPoints(readySeries, "ma200"), [readySeries]);
+
   if (st.s === "stablecoin") {
     return <Shell title={`${symbol} 走勢`}>
       <p className="text-sm text-cb-muted">穩定幣價格設計上固定，技術指標不適用。</p>
@@ -90,17 +102,19 @@ export function PriceChartPanel({ coinId, symbol, spotPrice, isStablecoin }: Pro
 
   const { series } = st;
   const last = series.signals.at(-1);
-  const ma = (k: "ma50" | "ma200") =>
-    series.signals.flatMap((s) => (s[k] === undefined ? [] : [{ time: s.time, value: s[k]! }]));
 
   return (
     <Shell title={`${symbol} 90 日走勢`}>
       <div className="mb-2 text-[11px] text-cb-muted">
         來源：{series.source}
         {series.kind === "candles" ? ` · ${series.pair} · 日 K（UTC）` : " · 每日收盤價"}
-        {series.kind === "line" && `　無可用日 K 資料，改用每日收盤價，因此沒有 K 線`}
+        {series.kind === "line" && (
+          series.degraded === "binance-unavailable"
+            ? "　Binance 日 K 資料來源暫時無法取得，暫以每日收盤價呈現"
+            : "　無可用日 K 資料，改用每日收盤價，因此沒有 K 線"
+        )}
       </div>
-      <PriceChartCanvas kind={series.kind} points={series.points} ma50={ma("ma50")} ma200={ma("ma200")} />
+      <PriceChartCanvas kind={series.kind} points={series.points} ma50={ma50} ma200={ma200} />
       <div className="mt-3 grid grid-cols-2 gap-3 border-t border-hairline-soft pt-3 sm:grid-cols-4">
         <Readout label="RSI 14" value={last?.rsi14?.toFixed(1) ?? "—"} />
         <Readout label="MACD" value={last?.macd ? `${last.macd.macd.toFixed(2)} / ${last.macd.signal.toFixed(2)}` : "—"} />

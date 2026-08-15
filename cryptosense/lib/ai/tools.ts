@@ -21,15 +21,23 @@ export function makeCryptoTools(
         const target = id ?? ctx.coinId;
         if (!target) return fail("CoinGecko", "no coin specified");
         const r = await getCoinData(target);
-        if (r.data && reg) {
+        if (!r.data) return r;
+        // spark7d is 168 long floats the model cannot reason over, and tool
+        // results stay in the conversation for every later turn. The Dashboard's
+        // sparkline still reads spark7d straight from getCoinData, so strip it
+        // only on the way to the model. (The coin detail page's chart no longer
+        // reads spark7d at all — it fetches its own candles/closes via
+        // /api/price-series.)
+        const { spark7d: _spark7d, ...data } = r.data;
+        if (reg) {
           const s = reg.add({
             kind: "market", title: `${r.data.name} 市場資料快照`,
             url: `https://www.coingecko.com/en/coins/${r.data.id}`,
             meta: `CoinGecko · ${r.timestamp} · Powered by CoinGecko API`,
           });
-          return { ...r, sources: [s] };
+          return { ...r, data, sources: [s] };
         }
-        return r;
+        return { ...r, data };
       },
     }),
     getCryptoNews: tool({

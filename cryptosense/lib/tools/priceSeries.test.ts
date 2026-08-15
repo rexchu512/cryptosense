@@ -64,6 +64,8 @@ describe("getPriceSeries", () => {
 
     expect(r.data?.kind).toBe("line");
     expect(r.data?.source).toBe("CoinGecko");
+    // 撞名防呆退回是正常運作，不是 Binance 故障，不該標成 degraded。
+    expect(r.data?.degraded).toBeUndefined();
   });
 
   it("uses the line series when the coin has no Binance pair", async () => {
@@ -73,6 +75,8 @@ describe("getPriceSeries", () => {
 
     expect(r.data?.kind).toBe("line");
     expect(r.data?.signals.at(-1)?.rsi14).toBeDefined();
+    // 這個幣真的沒有交易對，是正常運作，不是 Binance 故障，不該標成 degraded。
+    expect(r.data?.degraded).toBeUndefined();
   });
 
   it("refuses stablecoins before spending any upstream request", async () => {
@@ -92,5 +96,42 @@ describe("getPriceSeries", () => {
 
     expect(r.data).toBeNull();
     expect(r.code).toBe("unavailable");
+  });
+
+  it("marks the fallback line series degraded when Binance's pair list is unavailable, not just missing", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    // 451/429/5xx 這類上游故障：code 是 "unavailable"，不是這個幣沒有交易對的 "unlisted"。
+    mockPairs.mockResolvedValue({ data: null, source: "Binance", timestamp: "t", code: "unavailable" } as any);
+
+    const r = await getPriceSeries(base);
+
+    expect(r.data?.kind).toBe("line");
+    expect(r.data?.source).toBe("CoinGecko");
+    expect(r.data?.degraded).toBe("binance-unavailable");
+    expect(warn).toHaveBeenCalled();
+    expect(warn.mock.calls[0][0]).toContain("bitcoin");
+  });
+
+  it("marks the fallback line series degraded when Binance's OHLCV fetch is unavailable, not just the pair missing", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    // 交易對存在，但拉日 K 那一步故障（同樣是 "unavailable"，不是 400 的 "unlisted"）。
+    mockOHLCV.mockResolvedValue({ data: null, source: "Binance", timestamp: "t", code: "unavailable" } as any);
+
+    const r = await getPriceSeries(base);
+
+    expect(r.data?.kind).toBe("line");
+    expect(r.data?.source).toBe("CoinGecko");
+    expect(r.data?.degraded).toBe("binance-unavailable");
+    expect(warn).toHaveBeenCalled();
+    expect(warn.mock.calls[0][0]).toContain("bitcoin");
+  });
+
+  it("does not log a false price-mismatch when the spot price is missing (mapped to 0)", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const r = await getPriceSeries({ ...base, spotPrice: 0 });
+
+    expect(r.data?.kind).toBe("line");
+    expect(warn).not.toHaveBeenCalled();
   });
 });
