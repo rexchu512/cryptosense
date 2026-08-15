@@ -2,5 +2,36 @@
 .superpowers/
 # Playwright/Chrome audit artifacts (screenshots, console logs, snapshots)
 .playwright-mcp/
-/home-desktop.png
-/v2-home.png
+
+# Screenshots taken while checking a page. They are evidence for one
+# conversation, not project files — keep the finding, drop the image.
+/*.png
+
+# Large working trees that live here for convenience but are not this
+# project's source. cs_oracle_live alone is ~1.5 GB / 88k files, ppt-master
+# ~675 MB. Untracked and unignored is the dangerous combination: a
+# `git clean -fdx` would delete them without warning.
+/cs_oracle_live/
+/ppt-master/
+/QA-assistant/
+/chatgpt-speaking-coach/
+/ielts-tracker/
+/rex-vibecoding/
+/cryptosense-old-backup/
+/notes/
+
+# Scraped corpora. These are data, not code, and they already live in the
+# OpenAI vector store. Regenerate with the crawlers in crawl4ai-lab/ and
+# re-upload with corpus-ingest/ (that tooling IS tracked).
+/rekt-corpus/
+/defillama-corpus/
+/yt-corpus/
+/x-corpus/
+
+# Test and scratch leftovers
+/.pytest_basetemp/
+/.tmp/
+
+# Fidelity eval raw results: ~1.4 MB of transcripts per run. The harness and
+# the question set are tracked; the outputs are reproducible.
+/cryptosense/eval/results/
