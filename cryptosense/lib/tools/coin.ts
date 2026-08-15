@@ -5,7 +5,7 @@ import type { ToolResult } from "./types";
 export type CoinData = {
   id: string; symbol: string; name: string; image: string; marketCapRank: number;
   price: number; change24h: number; change7d: number;
-  marketCap: number; volume24h: number; circulatingSupply: number; spark7d: number[];
+  marketCap: number; volume24h: number; circulatingSupply: number; spark7d: number[]; isStablecoin: boolean;
 };
 
 const CG = "https://api.coingecko.com/api/v3";
@@ -22,6 +22,10 @@ export async function getCoinData(id: string): Promise<ToolResult<CoinData>> {
       change7d: m.price_change_percentage_7d ?? 0,
       marketCap: m.market_cap.usd, volume24h: m.total_volume.usd, circulatingSupply: m.circulating_supply,
       spark7d: m.sparkline_7d?.price ?? [],
+      // 穩定幣價格釘在 1 美元，K 線與 RSI 沒有意義，畫出來反而誤導。
+      // 只認分類標籤。不要改用「波動小於 x%」推論 —— 橫盤整理的一般幣
+      // 會被誤判成穩定幣，而且發生時沒有任何跡象。
+      isStablecoin: (j.categories ?? []).includes("Stablecoins"),
     }, "CoinGecko");
   } catch (e: any) { return fail("CoinGecko", e.message); }
 }

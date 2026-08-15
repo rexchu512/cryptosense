@@ -5,7 +5,7 @@ import { CoinDetail } from "./CoinDetail";
 const coin = {
   id: "ethereum", symbol: "ETH", name: "Ethereum", image: "https://x/eth.png", marketCapRank: 2,
   price: 3540.18, change24h: -0.82, change7d: -2.3, marketCap: 4.256e11, volume24h: 1.8e10,
-  circulatingSupply: 1.202e8, spark7d: [3600, 3580, 3550, 3540],
+  circulatingSupply: 1.202e8, spark7d: [3600, 3580, 3550, 3540], isStablecoin: false,
 };
 const news = [{ title: "ETF approved", url: "http://a", publishedAt: "2026-06-18T00:00:00Z" }];
 
