@@ -217,3 +217,141 @@ describe("Chat", () => {
     expect(screen.queryByText(/失敗|錯誤/)).toBeNull();
   });
 });
+
+describe("Chat risk card", () => {
+  const toolPart = {
+    type: "tool-getCoinData",
+    toolCallId: "call1",
+    state: "output-available",
+    input: {},
+    output: {
+      sources: [{ n: 1, kind: "market", title: "Ethereum 市場資料快照", meta: "CoinGecko" }],
+    },
+  };
+
+  const answered = [
+    { id: "m1", role: "user", parts: [{ type: "text", text: "ETH 風險？" }] },
+    { id: "m2", role: "assistant", parts: [toolPart, { type: "text", text: "風險偏中性。" }] },
+  ];
+
+  function ndjson(...objs: unknown[]) {
+    const enc = new TextEncoder();
+    return new ReadableStream({
+      start(c) {
+        for (const o of objs) c.enqueue(enc.encode(JSON.stringify(o) + "\n"));
+        c.close();
+      },
+    });
+  }
+
+  /** Suggestions and the risk card share the global fetch; branch on the URL. */
+  function routedFetch(cardBody: () => ReadableStream | null) {
+    return vi.fn().mockImplementation((url: string) =>
+      url === "/api/risk-card"
+        ? Promise.resolve({ ok: true, body: cardBody() })
+        : Promise.resolve({ ok: true, json: async () => ({ suggestions: [] }) }),
+    );
+  }
+
+  function completeTurn(messages: unknown[]) {
+    mockUseChat.mockReturnValue(baseChatReturn({ messages, status: "streaming" }));
+    const { rerender } = render(<Chat coinId="ethereum" symbol="ETH" />);
+    mockUseChat.mockReturnValue(baseChatReturn({ messages, status: "ready" }));
+    rerender(<Chat coinId="ethereum" symbol="ETH" />);
+  }
+
+  beforeEach(() => {
+    mockUseChat.mockReset();
+    mockUseChat.mockReturnValue(baseChatReturn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("requests a card with the question, the answer and the cited sources", async () => {
+    const fetchMock = routedFetch(() => ndjson({ type: "done" }));
+    vi.stubGlobal("fetch", fetchMock);
+    completeTurn(answered);
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith("/api/risk-card", expect.any(Object)),
+    );
+    const call = fetchMock.mock.calls.find((c: unknown[]) => c[0] === "/api/risk-card")!;
+    const body = JSON.parse((call[1] as { body: string }).body);
+    expect(body).toMatchObject({ symbol: "ETH", coinId: "ethereum", question: "ETH 風險？" });
+    expect(body.answer).toContain("風險偏中性");
+    expect(body.sources[0].n).toBe(1);
+  });
+
+  it("renders the card above the answer once the stream commits it", async () => {
+    vi.stubGlobal(
+      "fetch",
+      routedFetch(() =>
+        ndjson(
+          { type: "incidents", data: null },
+          {
+            type: "card",
+            data: {
+              stance: "偏高風險",
+              confidence: "中",
+              headline: "波動放大，進場前先確認部位規模。",
+              pros: [{ text: "流動性充足", sourceId: 1 }, { text: "開發活躍", sourceId: null }],
+              risks: [{ text: "波動放大", sourceId: 1 }, { text: "生態有事件", sourceId: null }],
+            },
+          },
+          { type: "done" },
+        ),
+      ),
+    );
+    completeTurn(answered);
+
+    await waitFor(() => expect(screen.getByText("偏高風險")).toBeInTheDocument());
+    expect(screen.getByText("波動放大，進場前先確認部位規模。")).toBeInTheDocument();
+    // The prose answer and its source tray are untouched.
+    expect(screen.getByText(/風險偏中性/)).toBeInTheDocument();
+  });
+
+  it("shows no card when generation errors, and keeps the prose answer", async () => {
+    vi.stubGlobal(
+      "fetch",
+      routedFetch(() =>
+        ndjson({ type: "card", data: { stance: "偏高風險" } }, { type: "error" }),
+      ),
+    );
+    completeTurn(answered);
+
+    await waitFor(() => expect(screen.getByText(/風險偏中性/)).toBeInTheDocument());
+    expect(screen.queryByLabelText("風險彙整卡")).toBeNull();
+  });
+
+  it("survives a failed card request without surfacing an error", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string) =>
+        url === "/api/risk-card"
+          ? Promise.reject(new Error("network down"))
+          : Promise.resolve({ ok: true, json: async () => ({ suggestions: [] }) }),
+      ),
+    );
+    completeTurn(answered);
+
+    await waitFor(() => expect(screen.getByText(/風險偏中性/)).toBeInTheDocument());
+    expect(screen.queryByLabelText("風險彙整卡")).toBeNull();
+    expect(screen.queryByText(/失敗|錯誤/)).toBeNull();
+  });
+
+  it("does not request a card for an answer that called no tools", async () => {
+    // Scope refusals and small talk retrieve nothing, so there is no evidence
+    // to take a risk stance on.
+    const fetchMock = routedFetch(() => ndjson({ type: "done" }));
+    vi.stubGlobal("fetch", fetchMock);
+    completeTurn([
+      { id: "m1", role: "user", parts: [{ type: "text", text: "你是誰？" }] },
+      { id: "m2", role: "assistant", parts: [{ type: "text", text: "我只做風險研究。" }] },
+    ]);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(fetchMock.mock.calls.some((c: unknown[]) => c[0] === "/api/risk-card")).toBe(false);
+  });
+});

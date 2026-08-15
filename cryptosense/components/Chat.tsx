@@ -12,7 +12,10 @@ import {
 } from "ai";
 import { Markdown } from "./Markdown";
 import { SourceTray } from "./SourceTray";
+import { RiskCard, type RiskCardStatus } from "./RiskCard";
+import { readRiskCardStream } from "@/lib/ai/riskCardStream";
 import type { CitedSource } from "@/lib/ai/sources";
+import type { IncidentSummary } from "@/lib/tools/incidents";
 
 /** Tool name to Chinese badge label */
 const TOOL_LABEL: Record<string, string> = {
@@ -43,6 +46,12 @@ function allSources(parts: MsgPart[]): CitedSource[] {
     .sort((a, b) => a.n - b.n);
 }
 
+type RiskCardState = {
+  card: Record<string, unknown> | null;
+  incidents: IncidentSummary | null;
+  status: RiskCardStatus;
+};
+
 function defaultChips(symbol: string) {
   return [
     `${symbol} 近 24hr 波動？`,
@@ -60,6 +69,9 @@ export function Chat({ coinId, symbol }: { coinId: string; symbol: string }) {
 
   const [input, setInput] = useState("");
   const [chips, setChips] = useState<string[]>(() => defaultChips(symbol));
+  /** Risk card per assistant message id; absent means nothing has arrived. */
+  const [cards, setCards] = useState<Record<string, RiskCardState>>({});
+  const requestedCardsRef = useRef<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevStatusRef = useRef(status);
   const busy = status !== "ready";
@@ -111,6 +123,61 @@ export function Chat({ coinId, symbol }: { coinId: string; symbol: string }) {
     const lastAnswerText = textOf(last.parts as MsgPart[]);
 
     let cancelled = false;
+
+    // Risk card: a second, structured pass over the answer just produced.
+    // Skipped when the turn called no tools — a scope refusal or small talk
+    // retrieved no evidence, so there is nothing to take a risk stance on.
+    const answerParts = last.parts as MsgPart[];
+    const hasEvidence = answerParts.some(
+      (p) => isToolUIPart(p) && p.state === "output-available",
+    );
+    // The requested-set lives in a ref, not in state: setting state
+    // synchronously inside an effect body triggers a cascading render, and the
+    // card has nothing to show until its first frame arrives anyway.
+    if (hasEvidence && !requestedCardsRef.current.has(last.id)) {
+      const messageId = last.id;
+      requestedCardsRef.current.add(messageId);
+      const cited = allSources(answerParts);
+      fetch("/api/risk-card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          symbol,
+          coinId,
+          question: lastUserText,
+          answer: lastAnswerText,
+          sources: cited,
+        }),
+      })
+        .then((r) =>
+          readRiskCardStream(r.ok ? r.body : null, (ev) => {
+            if (cancelled) return;
+            setCards((c) => {
+              const cur = c[messageId] ?? {
+                card: null,
+                incidents: null,
+                status: "streaming" as RiskCardStatus,
+              };
+              if (ev.type === "incidents") return { ...c, [messageId]: { ...cur, incidents: ev.data } };
+              if (ev.type === "card") return { ...c, [messageId]: { ...cur, card: ev.data } };
+              // "done" commits what arrived; "error" makes the card render
+              // nothing at all, leaving the prose answer as the whole result.
+              return {
+                ...c,
+                [messageId]: { ...cur, status: ev.type === "done" ? "done" : "error" },
+              };
+            });
+          }),
+        )
+        .catch(() => {
+          if (cancelled) return;
+          setCards((c) => ({
+            ...c,
+            [messageId]: { card: null, incidents: null, status: "error" },
+          }));
+        });
+    }
+
     fetch("/api/suggestions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -131,7 +198,6 @@ export function Chat({ coinId, symbol }: { coinId: string; symbol: string }) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, messages, coinId, symbol]);
 
   return (
@@ -175,6 +241,14 @@ export function Chat({ coinId, symbol }: { coinId: string; symbol: string }) {
                 <div className="border-t border-hairline-soft pt-3 first:border-t-0 first:pt-0">
                   {/* Telemetry Strip: completed retrieval steps, not an anthropomorphized "thinking..." narration */}
                   <TelemetryStrip parts={parts} />
+                  {cards[m.id] && (
+                    <RiskCard
+                      card={cards[m.id].card}
+                      incidents={cards[m.id].incidents}
+                      sources={allSources(parts)}
+                      status={cards[m.id].status}
+                    />
+                  )}
                   <Markdown>{linkifyCitations(text)}</Markdown>
                   <SourceTray sources={allSources(parts)} />
                 </div>
