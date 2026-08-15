@@ -32,7 +32,9 @@ describe("PriceChartPanel", () => {
 
     render(<PriceChartPanel {...props} symbol="XMR" />);
 
-    expect(await screen.findByText(/無交易對/)).toBeInTheDocument();
+    // 折線圖可能是因為沒有交易對，也可能是有交易對但價格對不上（撞名）被拒。
+    // 文案不該斷言原因，只該說明「沒有日 K，改用收盤價」這個兩種情況都成立的事實。
+    expect(await screen.findByText(/無可用日 K 資料/)).toBeInTheDocument();
   });
 
   it("explains that stablecoins are out of scope rather than showing an error", async () => {
@@ -48,6 +50,36 @@ describe("PriceChartPanel", () => {
     render(<PriceChartPanel {...props} />);
 
     expect(await screen.findByText(/暫時無法/)).toBeInTheDocument();
+  });
+
+  it("treats a non-ok HTTP response as an outage even when the body has no code field", async () => {
+    // 自家路由本身就會這樣：缺 symbol 回 400 {error:"symbol is required"}，沒有 code。
+    // CDN/代理層的 429、502 錯誤頁通常也一樣。沒檢查 r.ok 的話，這些會落到
+    // 「沒有資料」，把功能壞掉偽裝成「這個幣本來就沒有圖表」。
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: () => Promise.resolve({ error: "symbol is required" }),
+    }));
+
+    render(<PriceChartPanel {...props} />);
+
+    expect(await screen.findByText(/暫時無法/)).toBeInTheDocument();
+    expect(screen.queryByText(/沒有可用的歷史價格資料/)).not.toBeInTheDocument();
+  });
+
+  it("drops the previous coin's readouts when the coin changes, instead of showing them under the new heading", async () => {
+    stubJson({ data: { kind: "candles", source: "Binance", pair: "BTCUSDT", points, signals } });
+
+    const { rerender } = render(<PriceChartPanel {...props} />);
+    expect(await screen.findByText(/28\.4/)).toBeInTheDocument();
+
+    // 換幣：新的 fetch 故意不 resolve，確認舊幣的指標數字不會殘留到新標題底下。
+    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));
+    rerender(<PriceChartPanel {...props} coinId="ethereum" symbol="ETH" />);
+
+    expect(screen.queryByText(/28\.4/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/BTCUSDT/)).not.toBeInTheDocument();
   });
 
   it("never labels an indicator with a trading conclusion", async () => {

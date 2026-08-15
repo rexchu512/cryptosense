@@ -38,12 +38,24 @@ export function PriceChartPanel({ coinId, symbol, spotPrice, isStablecoin }: Pro
   const [st, setSt] = useState<State>(isStablecoin ? { s: "stablecoin" } : { s: "loading" });
 
   useEffect(() => {
-    if (isStablecoin) return;
+    // 換幣（甚至換到穩定幣）時，舊幣的圖表與指標必須先清掉，不能留在畫面上等新資料
+    // 進來才換——不然使用者會在「ETH 90 日走勢」標題下看到 BTC 的線和數字。
+    if (isStablecoin) {
+      setSt({ s: "stablecoin" });
+      return;
+    }
+    setSt({ s: "loading" });
     let alive = true;
     const url = `/api/price-series/${coinId}?symbol=${encodeURIComponent(symbol)}` +
       `&spot=${spotPrice}&stable=0`;
     fetch(url)
-      .then((r) => r.json())
+      .then((r) => {
+        // 非 2xx（例如缺代號的 400、CDN/代理層的 429、502）不一定帶 code 欄位。
+        // 沒檢查 r.ok 的話，這些回應會落到「沒有資料」，把功能壞掉偽裝成
+        // 「這個幣本來就沒有圖表」，沒有人會發現。丟出錯誤讓下面的 catch 統一導向 outage。
+        if (!r.ok) throw new Error(String(r.status));
+        return r.json();
+      })
       .then((j) => {
         if (!alive) return;
         if (j?.data) setSt({ s: "ready", series: j.data });
@@ -86,7 +98,7 @@ export function PriceChartPanel({ coinId, symbol, spotPrice, isStablecoin }: Pro
       <div className="mb-2 text-[11px] text-cb-muted">
         來源：{series.source}
         {series.kind === "candles" ? ` · ${series.pair} · 日 K（UTC）` : " · 每日收盤價"}
-        {series.kind === "line" && `　此幣在 Binance 無交易對，改用每日收盤價，因此沒有 K 線`}
+        {series.kind === "line" && `　無可用日 K 資料，改用每日收盤價，因此沒有 K 線`}
       </div>
       <PriceChartCanvas kind={series.kind} points={series.points} ma50={ma("ma50")} ma200={ma("ma200")} />
       <div className="mt-3 grid grid-cols-2 gap-3 border-t border-hairline-soft pt-3 sm:grid-cols-4">
