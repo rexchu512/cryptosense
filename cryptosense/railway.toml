@@ -1,0 +1,22 @@
+# Railway deployment config. Values here override the dashboard.
+#
+# THE REGION IS LOAD-BEARING. Do not move this service to a US region.
+#
+# The price chart's candlestick data comes from Binance, and Binance returns
+# HTTP 451 to US IP addresses. Deployed in a US region the feature does not
+# error: the CoinGecko daily-close fallback quietly takes over, roughly half
+# the coins lose their candlesticks, and nothing on the page says so. The
+# service was previously on `us-west2` (California), which would have shipped
+# exactly that.
+#
+# Region identifiers: https://docs.railway.com/deployments/regions
+#   us-west2                 California, USA        <- do not use
+#   us-east4-eqdc4a          Virginia, USA          <- do not use
+#   europe-west4-drams3a     Amsterdam, Netherlands
+#   asia-southeast1-eqsg3a   Singapore
+#
+# To verify after a deploy: open a coin with a Binance pair (BTC, ETH) and
+# check the chart's source label. It must read "Binance", not "CoinGecko".
+
+[deploy.multiRegionConfig."asia-southeast1-eqsg3a"]
+numReplicas = 1
