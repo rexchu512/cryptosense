@@ -21,15 +21,23 @@ export function makeCryptoTools(
         const target = id ?? ctx.coinId;
         if (!target) return fail("CoinGecko", "no coin specified");
         const r = await getCoinData(target);
-        if (r.data && reg) {
+        if (!r.data) return r;
+        // spark7d is 168 long floats the model cannot reason over, and tool
+        // results stay in the conversation for every later turn, so strip it on
+        // the way to the model only — /api/coin/[id] still returns it wholesale.
+        // No renderer reads it today: the Dashboard's sparkline comes from
+        // lib/tools/market.ts, and the coin detail chart fetches its own
+        // candles/closes via /api/price-series.
+        const { spark7d: _spark7d, ...data } = r.data;
+        if (reg) {
           const s = reg.add({
             kind: "market", title: `${r.data.name} 市場資料快照`,
             url: `https://www.coingecko.com/en/coins/${r.data.id}`,
             meta: `CoinGecko · ${r.timestamp} · Powered by CoinGecko API`,
           });
-          return { ...r, sources: [s] };
+          return { ...r, data, sources: [s] };
         }
-        return r;
+        return { ...r, data };
       },
     }),
     getCryptoNews: tool({
@@ -51,7 +59,12 @@ export function makeCryptoTools(
       inputSchema: z.object({ query: z.string() }),
       execute: async function* ({ query }) {
         yield { status: "searching" as const };
-        const result = await searchKnowledgeBase(`${ctx.symbol ?? ""} ${query}`.trim());
+        // Lead with the question so it drives the embedding, then trail the
+        // ticker and CoinGecko slug as lexical anchors for the hybrid search.
+        // Prefixing the ticker (the old shape) pulled the vector toward the
+        // small slice of the corpus that names a coin at all.
+        const anchored = [query, ctx.symbol, ctx.coinId].filter(Boolean).join(" ").trim();
+        const result = await searchKnowledgeBase(anchored);
         const sources = (result.data ?? []).map((c) =>
           reg
             ? reg.add({

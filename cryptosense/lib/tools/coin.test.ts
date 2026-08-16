@@ -31,4 +31,26 @@ describe("getCoinData", () => {
     expect(r.data).toBeNull();
     expect(r.error).toContain("404");
   });
+  it("flags stablecoins from the CoinGecko category list", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({
+      id: "tether", symbol: "usdt", name: "Tether", image: {}, market_cap_rank: 3,
+      categories: ["Stablecoins", "USD Stablecoin", "Ethereum Ecosystem"],
+      market_data: {
+        current_price: { usd: 1 }, price_change_percentage_24h: 0, price_change_percentage_7d: 0,
+        market_cap: { usd: 1 }, total_volume: { usd: 1 }, circulating_supply: 1,
+      } }) }));
+    const r = await getCoinData("tether");
+    expect(r.data?.isStablecoin).toBe(true);
+  });
+
+  it("treats a coin with no category list as a normal coin", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({
+      id: "monero", symbol: "xmr", name: "Monero", image: {}, market_cap_rank: 16,
+      market_data: {
+        current_price: { usd: 300 }, price_change_percentage_24h: 0, price_change_percentage_7d: 0,
+        market_cap: { usd: 1 }, total_volume: { usd: 1 }, circulating_supply: 1,
+      } }) }));
+    const r = await getCoinData("monero");
+    expect(r.data?.isStablecoin).toBe(false);
+  });
 });

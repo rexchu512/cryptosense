@@ -18,3 +18,14 @@ npm test                            # 65 tests
 ```
 
 行情與新聞免金鑰即可跑；AI 問答需 `OPENAI_API_KEY`；個人知識庫需先 `npx tsx --env-file=.env.local scripts/ingest.ts ./knowledge` 取得並設定 `OPENAI_VECTOR_STORE_ID`。
+
+## 部署限制
+
+**服務必須部署在非美國區域（指定新加坡）。**
+
+K 線資料來自 Binance，Binance 對美國 IP 回傳 451。部署在美國區的後果不是
+功能報錯，而是**約一半的幣悄悄從 K 線退化成折線圖**，因為 CoinGecko 折線層
+會自動接手。畫面上不會出現任何錯誤訊息。
+
+檢查方式：開啟一個確定有 Binance 交易對的幣（例如 BTC、ETH），
+資料來源標籤應顯示「Binance」。若顯示「CoinGecko」，代表部署區域錯誤。
